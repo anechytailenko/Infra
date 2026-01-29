@@ -8,25 +8,28 @@ struct SortDecisionView: View {
     
     var body: some View {
         ZStack {
-            // Global Background - Slightly darker gray as requested
+            // Global Background (Darker Gray as requested)
             Color(white: 0.90)
                 .ignoresSafeArea()
             
             VStack(spacing: 16) {
-                // 1. Diagram Card
+                
+                // 1. Top Control Bar (Buttons outside the tree view)
+                topControlBar
+                
+                // 2. Diagram Card (Zoomable & Draggable)
                 diagramSection
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .layoutPriority(1)
                 
-                // 2. Proposed Changes List Card
+                // 3. Proposed Changes List Card
                 proposedChangesList
-                    .frame(height: 280) // Fixed height for consistency
+                    .frame(height: 280)
                     .layoutPriority(0)
             }
             .padding(24)
         }
-        .frame(minWidth: 900, minHeight: 700)
-        // Auto-select first file on launch to show visual feedback immediately
+        .frame(minWidth: 900, minHeight: 750)
         .onAppear {
             if let firstMove = viewModel.effectiveMoves.first {
                 viewModel.selectMove(id: firstMove.id)
@@ -34,54 +37,96 @@ struct SortDecisionView: View {
         }
     }
     
+    // MARK: - Top Control Bar
+    
+    private var topControlBar: some View {
+        HStack {
+            Spacer()
+            // Buttons are now separate from the diagram card
+            Button("Accept") {
+                viewModel.acceptAll()
+            }
+            .buttonStyle(NiceButtonStyle(color: .blue))
+            
+            Button("Decline") {
+                viewModel.declineAll()
+            }
+            .buttonStyle(NiceButtonStyle(color: .gray))
+        }
+    }
+    
     // MARK: - Diagram Section
     
+    // State for Gestures
+    @State private var offset: CGSize = .zero
+    @State private var lastDragPosition: CGSize = .zero
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    
     private var diagramSection: some View {
-        ZStack(alignment: .topTrailing) {
-            // The Graph with Drag Gesture
-            SortDecisionDiagramView(
-                nodes: viewModel.diagramNodes,
-                edges: viewModel.diagramEdges,
-                selectedMove: viewModel.selectedMove
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            
-            // Floating Action Buttons
-            HStack(spacing: 12) {
-                Button("Accept") {
-                    viewModel.acceptAll()
-                }
-                .buttonStyle(NiceButtonStyle(color: .blue))
-                
-                Button("Decline") {
-                    viewModel.declineAll()
-                }
-                .buttonStyle(NiceButtonStyle(color: .gray))
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                // The Graph
+                SortDecisionDiagramView(
+                    nodes: viewModel.diagramNodes,
+                    edges: viewModel.diagramEdges,
+                    selectedMove: viewModel.selectedMove
+                )
+                .scaleEffect(scale)
+                .offset(x: offset.width, y: offset.height)
+                // Gestures: Drag (Pan) and Magnification (Zoom)
+                .gesture(
+                    SimultaneousGesture(
+                        DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: lastDragPosition.width + value.translation.width,
+                                    height: lastDragPosition.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                lastDragPosition = offset
+                            },
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let newScale = lastScale * value
+                                // Limit zoom levels
+                                scale = max(0.5, min(3.0, newScale))
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                            }
+                    )
+                )
             }
-            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.white) // Card Background
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
     
     // MARK: - Proposed Changes List Section
     
     private var proposedChangesList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // List Header
+            // Header
             HStack(spacing: 8) {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(.blue)
+                    .font(.title3)
                 Text("User")
-                    .font(.system(.headline, design: .default)) // Sans-serif
-                    .foregroundStyle(.black) // Explicit Black
+                    .font(.system(.headline, design: .default))
+                    .foregroundStyle(.black)
                 Spacer()
             }
             .padding()
             .background(Color.white)
+            .zIndex(1) // Ensure header sits on top of scrolling content
             
+            // Distinct Separator Line
             Divider()
+                .overlay(Color.black.opacity(0.1))
             
             // List Content
             ScrollView {
@@ -91,9 +136,11 @@ struct SortDecisionView: View {
                             .foregroundStyle(.gray)
                             .padding()
                     } else {
-                        ForEach(viewModel.effectiveMoves) { move in
+                        // Enumerated to calculate Zebra stripes
+                        ForEach(Array(viewModel.effectiveMoves.enumerated()), id: \.element.id) { index, move in
                             ProposedMoveRow(
                                 move: move,
+                                index: index,
                                 isSelected: viewModel.selectedMoveId == move.id,
                                 onSelect: { viewModel.selectMove(id: move.id) },
                                 onDecline: { viewModel.declineFile(id: move.id) }
@@ -110,51 +157,68 @@ struct SortDecisionView: View {
     }
 }
 
-// MARK: - Subview: Proposed Move Row (Handles Hover & Text Color)
+// MARK: - Subview: Proposed Move Row
 
 struct ProposedMoveRow: View {
     let move: ProposedFileMove
+    let index: Int
     let isSelected: Bool
     let onSelect: () -> Void
     let onDecline: () -> Void
     
-    // State for hover effect on the decline button
     @State private var isHoveringDecline = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "doc.text.fill")
-                .foregroundStyle(.gray)
-                .font(.title3)
+        ZStack {
+            // Zebra Styling Background
+            // If selected: Blue tint.
+            // If not selected: Alternate between White and Very Light Gray (0.97)
+            if isSelected {
+                Color.blue.opacity(0.1)
+            } else {
+                index % 2 == 0 ? Color.white : Color(white: 0.97)
+            }
             
-            // Explicitly Black Text for visibility on White background
-            Text(move.fileName)
-                .font(.system(size: 14, weight: .medium, design: .default))
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Content
+            HStack(spacing: 12) {
+                // Left: Icon + Filename
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundStyle(.gray)
+                        .font(.title3)
+                    
+                    Text(move.fileName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.black)
+                }
+                
+                Spacer()
+                
+                // Right: Decline Button
+                Button {
+                    withAnimation { onDecline() }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(isHoveringDecline ? Color.red : Color.gray.opacity(0.5))
+                        .scaleEffect(isHoveringDecline ? 1.1 : 1.0)
+                        .animation(.easeInOut(duration: 0.2), value: isHoveringDecline)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    isHoveringDecline = hovering
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             
+            // Center Layer: "Moved To" property
+            // We use a ZStack layer to ensure it is perfectly centered in the row
             Text("moved to: \(move.toParentName)")
-                .font(.system(size: 14, design: .default))
-                .foregroundStyle(Color(white: 0.4)) // Dark Gray
-            
-            // Decline Button with Hover Effect
-            Button {
-                withAnimation { onDecline() }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(isHoveringDecline ? Color.red : Color.gray.opacity(0.5))
-                    .scaleEffect(isHoveringDecline ? 1.1 : 1.0)
-                    .animation(.easeInOut(duration: 0.2), value: isHoveringDecline)
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                isHoveringDecline = hovering
-            }
+                .font(.system(size: 14))
+                .foregroundStyle(Color.gray)
+                .allowsHitTesting(false) // Let clicks pass through to the row
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(isSelected ? Color.blue.opacity(0.1) : Color.white)
         .contentShape(Rectangle())
         .onTapGesture {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -171,28 +235,24 @@ struct NiceButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 24) // Slightly wider buttons
+            .padding(.vertical, 10)
             .background(color)
             .foregroundStyle(.white)
             .clipShape(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .shadow(color: color.opacity(0.3), radius: 4, x: 0, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
-// MARK: - SortDecisionDiagramView
+// MARK: - SortDecisionDiagramView (Internal)
 
 struct SortDecisionDiagramView: View {
     
     let nodes: [DiagramNode]
     let edges: [DiagramEdge]
     let selectedMove: ProposedFileMove?
-    
-    // State for Draggable Tree
-    @State private var offset: CGSize = .zero
-    @State private var lastDragPosition: CGSize = .zero
     
     var body: some View {
         GeometryReader { geo in
@@ -211,23 +271,9 @@ struct SortDecisionDiagramView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Apply the drag offset to the whole tree container
-            .offset(x: offset.width, y: offset.height)
-            .contentShape(Rectangle()) // Ensures the empty space is draggable
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        offset = CGSize(
-                            width: lastDragPosition.width + value.translation.width,
-                            height: lastDragPosition.height + value.translation.height
-                        )
-                    }
-                    .onEnded { value in
-                        lastDragPosition = offset
-                    }
-            )
         }
-        .padding(40)
+        // Increase padding inside the scalable area so nodes aren't cut off easily
+        .padding(100)
     }
     
     // MARK: - Layers
@@ -327,7 +373,6 @@ struct DiagramNodeView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        // Solid white background to hide lines behind nodes
         .background(
             ZStack {
                 Color.white
@@ -346,7 +391,7 @@ struct DiagramNodeView: View {
     }
 }
 
-// MARK: - Diagram Layout (Left-to-Right)
+// MARK: - Diagram Layout Logic
 
 private struct DiagramLayout {
     
