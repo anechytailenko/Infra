@@ -242,20 +242,20 @@ struct SortDecisionDiagramView: View {
     
     var body: some View {
         GeometryReader { geo in
-            let layout = DiagramLayout(size: geo.size, nodes: nodes, selectedMove: selectedMove)
+            let layoutSize = CGSize(
+                width: max(geo.size.width, SortDecisionStyle.diagramMinLayoutWidth),
+                height: max(geo.size.height, SortDecisionStyle.diagramMinLayoutHeight)
+            )
+            let layout = DiagramLayout(size: layoutSize, nodes: nodes, selectedMove: selectedMove)
             
             ZStack(alignment: .topLeading) {
-                // 1. Edges
                 edgesLayer(layout: layout)
-                
-                // 2. Nodes
                 nodesLayer(layout: layout)
-                
-                // 3. File Stubs
                 if let move = selectedMove {
                     fileNodesLayer(layout: layout, move: move)
                 }
             }
+            .frame(minWidth: layoutSize.width, minHeight: layoutSize.height)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(SortDecisionStyle.diagramInnerPadding)
@@ -394,31 +394,46 @@ private struct DiagramLayout {
     
     func position(for nodeId: UUID) -> CGPoint? {
         guard let root = rootNode else { return nil }
+        let marginH = SortDecisionStyle.diagramHorizontalMargin
         
         if nodeId == root.id {
-            return CGPoint(x: size.width * SortDecisionStyle.diagramRootXFactor, y: size.height * SortDecisionStyle.diagramRootYFactor)
+            let x = max(marginH, size.width * SortDecisionStyle.diagramRootXFactor)
+            return CGPoint(x: x, y: size.height * SortDecisionStyle.diagramRootYFactor)
         }
         
         let folders = folderNodes
         guard let index = folders.firstIndex(where: { $0.id == nodeId }) else { return nil }
         
-        let folderColumnX = size.width * SortDecisionStyle.diagramFolderColumnXFactor
-        let spacingY = SortDecisionStyle.diagramFolderSpacingY
-        let totalHeight = CGFloat(folders.count - 1) * spacingY
-        let startY = (size.height - totalHeight) / 2
-        
+        let folderColumnX = min(size.width - marginH, size.width * SortDecisionStyle.diagramFolderColumnXFactor)
+        let marginV = SortDecisionStyle.diagramVerticalMargin
+        let availableHeight = max(0, size.height - 2 * marginV)
+        let count = CGFloat(folders.count)
+        let spacingY = count > 1
+            ? min(SortDecisionStyle.diagramFolderSpacingY, availableHeight / (count - 1))
+            : 0
+        let totalHeight = (count - 1) * spacingY
+        let startY = marginV + max(0, (availableHeight - totalHeight) / 2)
         let y = startY + CGFloat(index) * spacingY
         return CGPoint(x: folderColumnX, y: y)
     }
     
     func fileOriginalPosition(move: ProposedFileMove) -> CGPoint? {
         guard let rootPos = position(for: move.fromParentId) else { return nil }
-        return CGPoint(x: rootPos.x + SortDecisionStyle.diagramFileOriginalOffsetX, y: rootPos.y + SortDecisionStyle.diagramFileOriginalOffsetY)
+        let marginH = SortDecisionStyle.diagramHorizontalMargin
+        let folderColumnX = min(size.width - marginH, size.width * SortDecisionStyle.diagramFolderColumnXFactor)
+        let maxOffsetX = max(0, folderColumnX - rootPos.x - marginH)
+        let offsetX = min(SortDecisionStyle.diagramFileOriginalOffsetX, maxOffsetX * 0.5)
+        let maxOffsetY = max(0, size.height - rootPos.y - SortDecisionStyle.diagramVerticalMargin)
+        let offsetY = min(SortDecisionStyle.diagramFileOriginalOffsetY, maxOffsetY * 0.6)
+        return CGPoint(x: rootPos.x + offsetX, y: rootPos.y + offsetY)
     }
     
     func fileProposedPosition(move: ProposedFileMove) -> CGPoint? {
         guard let folderPos = position(for: move.toParentId) else { return nil }
-        return CGPoint(x: folderPos.x + SortDecisionStyle.diagramFileProposedOffsetX, y: folderPos.y + SortDecisionStyle.diagramFileProposedOffsetY)
+        let marginH = SortDecisionStyle.diagramHorizontalMargin
+        let maxOffsetX = max(0, size.width - folderPos.x - marginH)
+        let offsetX = min(SortDecisionStyle.diagramFileProposedOffsetX, maxOffsetX * 0.8)
+        return CGPoint(x: folderPos.x + offsetX, y: folderPos.y + SortDecisionStyle.diagramFileProposedOffsetY)
     }
 }
 

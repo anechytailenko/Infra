@@ -124,4 +124,9 @@ struct SortDecisionStyle {
     static let diagramFileOriginalOffsetY: CGFloat = 70
     static let diagramFileProposedOffsetX: CGFloat = 160
     static let diagramFileProposedOffsetY: CGFloat = 0
+    /// Minimum size used for layout so the tree stays visible when the window is small.
+    static let diagramMinLayoutWidth: CGFloat = 420
+    static let diagramMinLayoutHeight: CGFloat = 320
+    static let diagramHorizontalMargin: CGFloat = 48
+    static let diagramVerticalMargin: CGFloat = 40
 }
