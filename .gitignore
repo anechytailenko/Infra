@@ -1,0 +1,12 @@
+# Mac OS junk
+.DS_Store
+
+# Tuist Generated Files (The "Cake")
+*.xcodeproj
+*.xcworkspace
+
+# Tuist Derived Data (Info.plists etc)
+Derived/
+
+# Swift Package Manager (if used later)
+.build/
