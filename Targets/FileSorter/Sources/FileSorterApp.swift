@@ -4,7 +4,7 @@ import SwiftUI
 struct FileSorterApp: App {
     var body: some Scene {
         WindowGroup {
-            GraphView()
+            SortDecisionView()
         }
         .windowStyle(.hiddenTitleBar)
     }
