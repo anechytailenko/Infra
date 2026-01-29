@@ -8,28 +8,21 @@ struct SortDecisionView: View {
     
     var body: some View {
         ZStack {
-            // Global Background (Darker Gray as requested)
-            Color(white: 0.90)
+            SortDecisionStyle.mainBackgroundGray
                 .ignoresSafeArea()
             
-            VStack(spacing: 16) {
-                
-                // 1. Top Control Bar (Buttons outside the tree view)
+            VStack(spacing: SortDecisionStyle.stackSpacing) {
                 topControlBar
-                
-                // 2. Diagram Card (Zoomable & Draggable)
                 diagramSection
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .layoutPriority(1)
-                
-                // 3. Proposed Changes List Card
                 proposedChangesList
-                    .frame(height: 280)
+                    .frame(height: SortDecisionStyle.proposedListHeight)
                     .layoutPriority(0)
             }
-            .padding(24)
+            .padding(SortDecisionStyle.mainPadding)
         }
-        .frame(minWidth: 900, minHeight: 750)
+        .frame(minWidth: SortDecisionStyle.minWidth, minHeight: SortDecisionStyle.minHeight)
         .onAppear {
             if let firstMove = viewModel.effectiveMoves.first {
                 viewModel.selectMove(id: firstMove.id)
@@ -46,12 +39,12 @@ struct SortDecisionView: View {
             Button("Accept") {
                 viewModel.acceptAll()
             }
-            .buttonStyle(NiceButtonStyle(color: .blue))
+            .buttonStyle(NiceButtonStyle(color: SortDecisionStyle.acceptButtonColor))
             
             Button("Decline") {
                 viewModel.declineAll()
             }
-            .buttonStyle(NiceButtonStyle(color: .gray))
+            .buttonStyle(NiceButtonStyle(color: SortDecisionStyle.declineButtonColor))
         }
     }
     
@@ -91,7 +84,7 @@ struct SortDecisionView: View {
                             .onChanged { value in
                                 let newScale = lastScale * value
                                 // Limit zoom levels
-                                scale = max(0.5, min(3.0, newScale))
+                                scale = max(SortDecisionStyle.zoomMin, min(SortDecisionStyle.zoomMax, newScale))
                             }
                             .onEnded { _ in
                                 lastScale = scale
@@ -100,9 +93,9 @@ struct SortDecisionView: View {
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.white) // Card Background
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .background(SortDecisionStyle.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: SortDecisionStyle.cardCornerRadius))
+            .shadow(color: SortDecisionStyle.cardShadowColor, radius: SortDecisionStyle.cardShadowRadius, x: SortDecisionStyle.cardShadowX, y: SortDecisionStyle.cardShadowY)
         }
     }
     
@@ -110,30 +103,28 @@ struct SortDecisionView: View {
     
     private var proposedChangesList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack(spacing: 8) {
+            HStack(spacing: SortDecisionStyle.listHeaderHStackSpacing) {
                 Image(systemName: "folder.fill")
-                    .foregroundStyle(.blue)
-                    .font(.title3)
+                    .foregroundStyle(SortDecisionStyle.folderIconColor)
+                    .font(SortDecisionStyle.listHeaderIconFont)
                 Text("User")
-                    .font(.system(.headline, design: .default))
-                    .foregroundStyle(.black)
+                    .font(SortDecisionStyle.listHeaderFont)
+                    .foregroundStyle(SortDecisionStyle.textPrimary)
                 Spacer()
             }
             .padding()
-            .background(Color.white)
-            .zIndex(1) // Ensure header sits on top of scrolling content
+            .background(SortDecisionStyle.cardBackground)
+            .zIndex(1)
             
-            // Distinct Separator Line
             Divider()
-                .overlay(Color.black.opacity(0.1))
+                .overlay(Color.black.opacity(SortDecisionStyle.listDividerOverlayOpacity))
             
             // List Content
             ScrollView {
                 VStack(spacing: 0) {
                     if viewModel.effectiveMoves.isEmpty {
                         Text("No pending moves")
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(SortDecisionStyle.emptyListPlaceholderColor)
                             .padding()
                     } else {
                         // Enumerated to calculate Zebra stripes
@@ -151,9 +142,9 @@ struct SortDecisionView: View {
                 }
             }
         }
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .background(SortDecisionStyle.cardBackground)
+        .cornerRadius(SortDecisionStyle.cardCornerRadius)
+        .shadow(color: SortDecisionStyle.cardShadowColor, radius: SortDecisionStyle.cardShadowRadius, x: SortDecisionStyle.cardShadowX, y: SortDecisionStyle.cardShadowY)
     }
 }
 
@@ -174,54 +165,49 @@ struct ProposedMoveRow: View {
             // If selected: Blue tint.
             // If not selected: Alternate between White and Very Light Gray (0.97)
             if isSelected {
-                Color.blue.opacity(0.1)
+                Color.blue.opacity(SortDecisionStyle.listSelectedRowTintOpacity)
             } else {
-                index % 2 == 0 ? Color.white : Color(white: 0.97)
+                index % 2 == 0 ? SortDecisionStyle.listRowEven : SortDecisionStyle.listZebraGray
             }
             
-            // Content
-            HStack(spacing: 12) {
-                // Left: Icon + Filename
-                HStack(spacing: 12) {
+            HStack(spacing: SortDecisionStyle.listRowHStackSpacing) {
+                HStack(spacing: SortDecisionStyle.listRowHStackSpacing) {
                     Image(systemName: "doc.text.fill")
-                        .foregroundStyle(.gray)
-                        .font(.title3)
+                        .foregroundStyle(SortDecisionStyle.listRowIconColor)
+                        .font(SortDecisionStyle.rowIconFont)
                     
                     Text(move.fileName)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.black)
+                        .font(SortDecisionStyle.rowFileNameFont)
+                        .foregroundStyle(SortDecisionStyle.textPrimary)
                 }
                 
                 Spacer()
                 
-                // Right: Decline Button
                 Button {
                     withAnimation { onDecline() }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(isHoveringDecline ? Color.red : Color.gray.opacity(0.5))
-                        .scaleEffect(isHoveringDecline ? 1.1 : 1.0)
-                        .animation(.easeInOut(duration: 0.2), value: isHoveringDecline)
+                        .font(SortDecisionStyle.rowIconFont)
+                        .foregroundStyle(isHoveringDecline ? SortDecisionStyle.declineButtonRed : SortDecisionStyle.declineButtonGray)
+                        .scaleEffect(isHoveringDecline ? SortDecisionStyle.rowDeclineHoverScale : 1.0)
+                        .animation(.easeInOut(duration: SortDecisionStyle.rowDeclineHoverDuration), value: isHoveringDecline)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
                     isHoveringDecline = hovering
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, SortDecisionStyle.listRowPaddingHorizontal)
+            .padding(.vertical, SortDecisionStyle.listRowPaddingVertical)
             
-            // Center Layer: "Moved To" property
-            // We use a ZStack layer to ensure it is perfectly centered in the row
             Text("moved to: \(move.toParentName)")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.gray)
-                .allowsHitTesting(false) // Let clicks pass through to the row
+                .font(SortDecisionStyle.rowMovedToFont)
+                .foregroundStyle(SortDecisionStyle.textSecondary)
+                .allowsHitTesting(false)
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: SortDecisionStyle.rowSelectSpringResponse, dampingFraction: SortDecisionStyle.rowSelectSpringDamping)) {
                 onSelect()
             }
         }
@@ -234,15 +220,15 @@ struct NiceButtonStyle: ButtonStyle {
     let color: Color
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .semibold))
-            .padding(.horizontal, 24) // Slightly wider buttons
-            .padding(.vertical, 10)
+            .font(SortDecisionStyle.buttonFont)
+            .padding(.horizontal, SortDecisionStyle.buttonPaddingHorizontal)
+            .padding(.vertical, SortDecisionStyle.buttonPaddingVertical)
             .background(color)
-            .foregroundStyle(.white)
+            .foregroundStyle(SortDecisionStyle.buttonForeground)
             .clipShape(Capsule())
-            .shadow(color: color.opacity(0.3), radius: 4, x: 0, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .shadow(color: color.opacity(SortDecisionStyle.buttonShadowOpacity), radius: SortDecisionStyle.buttonShadowRadius, x: 0, y: SortDecisionStyle.buttonShadowY)
+            .scaleEffect(configuration.isPressed ? SortDecisionStyle.buttonPressScale : 1.0)
+            .animation(.easeInOut(duration: SortDecisionStyle.buttonPressAnimationDuration), value: configuration.isPressed)
     }
 }
 
@@ -272,8 +258,7 @@ struct SortDecisionDiagramView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // Increase padding inside the scalable area so nodes aren't cut off easily
-        .padding(100)
+        .padding(SortDecisionStyle.diagramInnerPadding)
     }
     
     // MARK: - Layers
@@ -296,22 +281,22 @@ struct SortDecisionDiagramView: View {
                 path.move(to: start)
                 
                 let deltaX = end.x - start.x
-                let control1 = CGPoint(x: start.x + deltaX * 0.5, y: start.y)
-                let control2 = CGPoint(x: end.x - deltaX * 0.5, y: end.y)
+                let control1 = CGPoint(x: start.x + deltaX * SortDecisionStyle.edgeCurveControlFactor, y: start.y)
+                let control2 = CGPoint(x: end.x - deltaX * SortDecisionStyle.edgeCurveControlFactor, y: end.y)
                 
                 path.addCurve(to: end, control1: control1, control2: control2)
                 
                 switch edge.style {
                 case .normal:
-                    context.stroke(path, with: .color(.blue.opacity(0.4)), lineWidth: 2)
+                    context.stroke(path, with: .color(SortDecisionStyle.edgeNormalColor), lineWidth: SortDecisionStyle.edgeNormalLineWidth)
                 case .originalFile:
                     context.stroke(
                         path,
-                        with: .color(.red.opacity(0.6)),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])
+                        with: .color(SortDecisionStyle.edgeOriginalFileColor),
+                        style: StrokeStyle(lineWidth: SortDecisionStyle.edgeOriginalFileLineWidth, dash: SortDecisionStyle.edgeOriginalFileDash)
                     )
                 case .proposedFile:
-                    context.stroke(path, with: .color(.green), lineWidth: 2)
+                    context.stroke(path, with: .color(SortDecisionStyle.edgeProposedFileColor), lineWidth: SortDecisionStyle.edgeProposedFileLineWidth)
                 }
             }
         }
@@ -365,29 +350,29 @@ struct DiagramNodeView: View {
     var isGhost: Bool = false
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SortDecisionStyle.nodeHStackSpacing) {
             Image(systemName: icon)
-                .font(.headline)
+                .font(SortDecisionStyle.nodeIconFont)
             Text(text)
-                .font(.system(size: 13, weight: .medium))
+                .font(SortDecisionStyle.nodeTextFont)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, SortDecisionStyle.nodePaddingHorizontal)
+        .padding(.vertical, SortDecisionStyle.nodePaddingVertical)
         .background(
             ZStack {
-                Color.white
+                SortDecisionStyle.cardBackground
                 if !isGhost {
-                    baseColor.opacity(0.15)
+                    baseColor.opacity(SortDecisionStyle.nodeFillOpacity)
                 }
             }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: SortDecisionStyle.nodeCornerRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isGhost ? baseColor.opacity(0.5) : baseColor.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: isGhost ? [4, 4] : []))
+            RoundedRectangle(cornerRadius: SortDecisionStyle.nodeCornerRadius)
+                .strokeBorder(isGhost ? baseColor.opacity(SortDecisionStyle.nodeGhostBorderOpacity) : baseColor.opacity(SortDecisionStyle.nodeBorderOpacity), style: StrokeStyle(lineWidth: SortDecisionStyle.nodeBorderLineWidth, dash: isGhost ? SortDecisionStyle.nodeGhostDash : []))
         )
         .foregroundStyle(baseColor)
-        .shadow(color: baseColor.opacity(isGhost ? 0.0 : 0.15), radius: 6, x: 0, y: 3)
+        .shadow(color: baseColor.opacity(isGhost ? SortDecisionStyle.nodeGhostShadowOpacity : SortDecisionStyle.nodeShadowOpacity), radius: SortDecisionStyle.nodeShadowRadius, x: 0, y: SortDecisionStyle.nodeShadowY)
     }
 }
 
@@ -411,14 +396,14 @@ private struct DiagramLayout {
         guard let root = rootNode else { return nil }
         
         if nodeId == root.id {
-            return CGPoint(x: size.width * 0.2, y: size.height * 0.5)
+            return CGPoint(x: size.width * SortDecisionStyle.diagramRootXFactor, y: size.height * SortDecisionStyle.diagramRootYFactor)
         }
         
         let folders = folderNodes
         guard let index = folders.firstIndex(where: { $0.id == nodeId }) else { return nil }
         
-        let folderColumnX = size.width * 0.6
-        let spacingY: CGFloat = 100
+        let folderColumnX = size.width * SortDecisionStyle.diagramFolderColumnXFactor
+        let spacingY = SortDecisionStyle.diagramFolderSpacingY
         let totalHeight = CGFloat(folders.count - 1) * spacingY
         let startY = (size.height - totalHeight) / 2
         
@@ -428,12 +413,12 @@ private struct DiagramLayout {
     
     func fileOriginalPosition(move: ProposedFileMove) -> CGPoint? {
         guard let rootPos = position(for: move.fromParentId) else { return nil }
-        return CGPoint(x: rootPos.x + 40, y: rootPos.y + 70)
+        return CGPoint(x: rootPos.x + SortDecisionStyle.diagramFileOriginalOffsetX, y: rootPos.y + SortDecisionStyle.diagramFileOriginalOffsetY)
     }
     
     func fileProposedPosition(move: ProposedFileMove) -> CGPoint? {
         guard let folderPos = position(for: move.toParentId) else { return nil }
-        return CGPoint(x: folderPos.x + 160, y: folderPos.y)
+        return CGPoint(x: folderPos.x + SortDecisionStyle.diagramFileProposedOffsetX, y: folderPos.y + SortDecisionStyle.diagramFileProposedOffsetY)
     }
 }
 
