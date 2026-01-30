@@ -10,10 +10,8 @@ struct FolderDetailView: View {
     @State private var backButtonHover = false
     @State private var sortButtonHover = false
     @State private var cancelButtonHover = false
-    @State private var offset: CGSize = .zero
-    @State private var lastDragPosition: CGSize = .zero
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
+    @State private var expandButtonHover = false
+    @State private var isGraphExpanded = false
 
     init(folder: FolderNode? = nil) {
         self.folder = folder
@@ -158,33 +156,46 @@ struct FolderDetailView: View {
     }
     
     private var graphCard: some View {
-        GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil)
-            .scaleEffect(scale)
-            .offset(x: offset.width, y: offset.height)
-            .frame(minHeight: FolderDetailStyle.graphCardMinHeight)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .gesture(
-                SimultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            offset = CGSize(
-                                width: lastDragPosition.width + value.translation.width,
-                                height: lastDragPosition.height + value.translation.height
-                            )
-                        }
-                        .onEnded { _ in lastDragPosition = offset },
-                    MagnificationGesture()
-                        .onChanged { value in
-                            let newScale = lastScale * value
-                            scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
-                        }
-                        .onEnded { _ in lastScale = scale }
-                )
-            )
-            .padding(GraphViewStyle.graphAreaPadding)
+        VStack(spacing: 0) {
+            // Header with expand button
+            HStack {
+                Text("Folder Structure")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: .semibold))
+                    .foregroundStyle(AppStyle.textPrimary)
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isGraphExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isGraphExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(FolderDetailStyle.menuButtonBackground)
+                        )
+                        .opacity(expandButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
+                }
+                .buttonStyle(.plain)
+                .onHover { expandButtonHover = $0 }
+                .help(isGraphExpanded ? "Collapse graph" : "Expand graph")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(AppStyle.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
-            .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
+
+            Divider()
+                .background(AppStyle.textSecondary.opacity(0.2))
+
+            // GraphView with built-in zoom/scroll - no external gestures needed
+            GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil)
+                .frame(minHeight: isGraphExpanded ? FolderDetailStyle.graphCardExpandedHeight : FolderDetailStyle.graphCardMinHeight)
+                .frame(maxWidth: .infinity, maxHeight: isGraphExpanded ? .infinity : FolderDetailStyle.graphCardMinHeight)
+        }
+        .background(AppStyle.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
+        .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
     }
 }

@@ -16,6 +16,7 @@ struct FolderDetailStyle {
     // MARK: - Graph card
 
     static let graphCardMinHeight: CGFloat = 180
+    static let graphCardExpandedHeight: CGFloat = 500
 
     // MARK: - File list
 

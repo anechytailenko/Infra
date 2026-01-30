@@ -392,7 +392,7 @@ private struct LeadingAnchorModifier: ViewModifier {
             .background(GeometryReader { geo in
                 Color.clear
                     .onAppear { viewSize = geo.size }
-                    .onChange(of: geo.size) { newSize in viewSize = newSize }
+                    .onChange(of: geo.size) { _, newSize in viewSize = newSize }
             })
             .position(x: targetPoint.x + viewSize.width / 2, y: targetPoint.y)
     }
