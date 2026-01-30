@@ -19,10 +19,13 @@ struct FolderDetailStyle {
 
     // MARK: - File list
 
+    /// Fixed height for the file list card so the list body can scroll (like SortDecisionView).
+    static let fileListHeight: CGFloat = 260
     static let listHeaderHStackSpacing: CGFloat = 8
     static let listRowHStackSpacing: CGFloat = 12
     static let listRowPaddingHorizontal: CGFloat = 16
-    static let listRowPaddingVertical: CGFloat = 8
+    static let listRowPaddingVertical: CGFloat = 5
+    static let listRowIconSize: CGFloat = 16
     static let listDividerLeadingPadding: CGFloat = 50
     static let listDividerOpacity: Double = 0.1
     static let listCornerRadius: CGFloat = 12

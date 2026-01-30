@@ -1,27 +1,5 @@
 import SwiftUI
 
-// #region agent log
-private func _debugLog(_ message: String, location: String, hypothesisId: String, data: [String: String] = [:]) {
-    let path = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
-    var parts = ["\"message\":\"\(message.replacingOccurrences(of: "\"", with: "\\\""))\"", "\"location\":\"\(location)\"", "\"hypothesisId\":\"\(hypothesisId)\"", "\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000))"]
-    if !data.isEmpty {
-        let dataStr = data.map { "\"\($0.key)\":\"\($0.value)\"" }.joined(separator: ",")
-        parts.append("\"data\":{\(dataStr)}")
-    }
-    let line = "{" + parts.joined(separator: ",") + "}\n"
-    guard let d = line.data(using: .utf8) else { return }
-    if FileManager.default.fileExists(atPath: path) {
-        if let h = try? FileHandle(forUpdating: URL(fileURLWithPath: path)) {
-            h.seekToEndOfFile()
-            h.write(d)
-            try? h.close()
-        }
-    } else {
-        FileManager.default.createFile(atPath: path, contents: d, attributes: nil)
-    }
-}
-// #endregion
-
 // MARK: - FileListView
 // File list with filter/sort bar and rows. Uses FolderDetailStyle and AppStyle.
 
@@ -123,43 +101,29 @@ struct FileListView: View {
                         .frame(minWidth: 120)
                     }
                 }
-                // #region agent log
-                .background(GeometryReader { g in
-                    Color.clear.onAppear {
-                        _debugLog("trailing HStack size", location: "FileListView:menus", hypothesisId: "H5", data: ["width": "\(g.size.width)", "height": "\(g.size.height)"])
-                    }
-                })
-                // #endregion
             }
-            // #region agent log
-            .background(GeometryReader { g in
-                Color.clear.onAppear {
-                    _debugLog("FileList header size", location: "FileListView:header", hypothesisId: "H2", data: ["width": "\(g.size.width)", "height": "\(g.size.height)"])
-                }
-            })
-            // #endregion
             .padding(.horizontal, FolderDetailStyle.listRowPaddingHorizontal)
             .padding(.vertical, FolderDetailStyle.listRowPaddingVertical)
             .background(AppStyle.cardBackground)
             Rectangle()
                 .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
                 .frame(height: 1)
-            ForEach(viewModel.filteredAndSortedFiles) { file in
-                FileRowView(file: file)
-                Rectangle()
-                    .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
-                    .frame(height: 1)
-                    .padding(.leading, FolderDetailStyle.listDividerLeadingPadding)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(viewModel.filteredAndSortedFiles) { file in
+                        FileRowView(file: file)
+                        Rectangle()
+                            .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
+                            .frame(height: 1)
+                            .padding(.leading, FolderDetailStyle.listDividerLeadingPadding)
+                    }
+                }
             }
         }
+        .frame(height: FolderDetailStyle.fileListHeight)
         .background(AppStyle.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: FolderDetailStyle.listCornerRadius))
         .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
-        // #region agent log
-        .onAppear {
-            _debugLog("FileListView body appeared", location: "FileListView:body", hypothesisId: "H4", data: ["buttonSize": "\(FolderDetailStyle.filterSortButtonSize)", "platform": ProcessInfo.processInfo.operatingSystemVersionString, "runId": "post-fix"])
-        }
-        // #endregion
     }
 }
 
@@ -171,9 +135,9 @@ struct FileRowView: View {
     var body: some View {
         HStack(alignment: .center, spacing: FolderDetailStyle.listRowHStackSpacing) {
             Image(systemName: file.iconName)
-                .font(.system(size: 20))
+                .font(.system(size: FolderDetailStyle.listRowIconSize))
                 .foregroundStyle(AppStyle.textSecondary)
-                .frame(width: 30)
+                .frame(width: 24)
             Text(file.name)
                 .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
                 .foregroundStyle(AppStyle.textPrimary)
@@ -268,10 +232,5 @@ struct HistoryListView: View {
         .background(AppStyle.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: FolderDetailStyle.listCornerRadius))
         .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
-        // #region agent log
-        .onAppear {
-            _debugLog("HistoryListView body appeared", location: "HistoryListView:body", hypothesisId: "H4", data: ["buttonSize": "\(FolderDetailStyle.filterSortButtonSize)"])
-        }
-        // #endregion
     }
 }

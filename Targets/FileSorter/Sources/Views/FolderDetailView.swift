@@ -7,6 +7,7 @@ struct FolderDetailView: View {
     let folder: FolderNode?
     @StateObject private var viewModel: FolderDetailViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showSortPopover = false
 
     @State private var offset: CGSize = .zero
     @State private var lastDragPosition: CGSize = .zero
@@ -42,6 +43,7 @@ struct FolderDetailView: View {
                         Spacer()
                     }
                     #endif
+                    sortBar
                     graphCard
                     FileListView(viewModel: viewModel)
                     HistoryListView(history: viewModel.history)
@@ -67,6 +69,36 @@ struct FolderDetailView: View {
             }
         }
         #endif
+    }
+
+    private var sortBar: some View {
+        HStack {
+            Spacer()
+            Button {
+                showSortPopover = true
+            } label: {
+                Text("Sort")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showSortPopover, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(SortOption.allCases, id: \.self) { option in
+                        Button(option.rawValue) {
+                            viewModel.setSort(option)
+                            showSortPopover = false
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(12)
+                .frame(minWidth: 120)
+            }
+        }
     }
 
     private var graphCard: some View {
