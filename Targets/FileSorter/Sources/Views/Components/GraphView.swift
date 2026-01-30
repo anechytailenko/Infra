@@ -87,6 +87,7 @@ struct GraphView: View {
             FolderGraphLayout(root: root, onFolderSelected: onFolderSelected)
                 .padding(GraphViewStyle.graphAreaPadding)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Diagram Mode

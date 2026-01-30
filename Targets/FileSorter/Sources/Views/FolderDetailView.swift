@@ -161,8 +161,8 @@ struct FolderDetailView: View {
         GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil)
             .scaleEffect(scale)
             .offset(x: offset.width, y: offset.height)
-            .frame(minHeight: FolderDetailStyle.graphCardMinHeight)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
+            .frame(height: FolderDetailStyle.graphCardMinHeight)
             .clipped()
             .gesture(
                 SimultaneousGesture(
