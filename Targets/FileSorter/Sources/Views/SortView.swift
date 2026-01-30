@@ -29,15 +29,15 @@ struct SortView: View {
                                 root: root,
                                 startDepth: viewModel.baseDepth,
                                 selectedFile: viewModel.selectedFile,
-                                onAccept: { print("Accept Pressed") },
-                                onDecline: { print("Decline Pressed") },
-                                
-                                // Wiring up Drag & Drop
+                                // FIX: onManualMove corresponds to the Sort Mode parameters
                                 onManualMove: { fileID, newFolderName in
                                     withAnimation {
                                         viewModel.updateFileDestination(fileID: fileID, newFolderName: newFolderName)
                                     }
-                                }
+                                },
+                                // ActiveFile/ParentName are nil by default (Prompt Mode params), so we skip them
+                                onAccept: { print("Accept Pressed") },
+                                onDecline: { print("Decline Pressed") }
                             )
                             .frame(width: geo.size.width, height: geo.size.height)
                         }
@@ -54,7 +54,7 @@ struct SortView: View {
                                 files: viewModel.allFilesList,
                                 headerTitle: root.name,
                                 selectedFile: $viewModel.selectedFile,
-                                onCancelMove: viewModel.cancelMove // Wiring up the Cancel (X) button
+                                onCancelMove: viewModel.cancelMove
                             )
                             .frame(height: 300)
                             .background(AppStyle.cardBackground)
@@ -67,6 +67,7 @@ struct SortView: View {
     }
     
     // MARK: - Subviews
+    // These MUST be inside the struct
     
     var inputSection: some View {
         VStack(spacing: 20) {
@@ -117,3 +118,4 @@ struct SortView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+// End of Struct

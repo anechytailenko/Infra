@@ -52,23 +52,45 @@ struct GraphView: View {
     @State private var isDraggingFile: Bool = false
     
     private var startDepth: Int = 0
-    private var selectedFile: FileRowDisplay?
     private var rootNode: FolderNode?
+    
+    // MARK: - Sort Mode Data (Drag & Drop)
+    private var selectedFile: FileRowDisplay?
+    private var onManualMove: ((UUID, String) -> Void)?
+    
+    // MARK: - Prompt Mode Data (Click Selection)
+    private var activeFile: PromptFile?
+    private var activeFileParentName: String?
     
     var onAccept: (() -> Void)?
     var onDecline: (() -> Void)?
-    var onManualMove: ((UUID, String) -> Void)?
-
-    init(root: FolderNode, startDepth: Int = 0, selectedFile: FileRowDisplay? = nil, onAccept: (() -> Void)? = nil, onDecline: (() -> Void)? = nil, onManualMove: ((UUID, String) -> Void)? = nil) {
+    
+    // Unified Initializer
+    init(
+        root: FolderNode,
+        startDepth: Int = 0,
+        // Sort Mode Params
+        selectedFile: FileRowDisplay? = nil,
+        onManualMove: ((UUID, String) -> Void)? = nil,
+        // Prompt Mode Params
+        activeFile: PromptFile? = nil,
+        activeFileParentName: String? = nil,
+        // Actions
+        onAccept: (() -> Void)? = nil,
+        onDecline: (() -> Void)? = nil
+    ) {
         mode = .folder(root)
         self.rootNode = root
         self.startDepth = startDepth
         self.selectedFile = selectedFile
+        self.onManualMove = onManualMove
+        self.activeFile = activeFile
+        self.activeFileParentName = activeFileParentName
         self.onAccept = onAccept
         self.onDecline = onDecline
-        self.onManualMove = onManualMove
     }
 
+    // Legacy diagram init
     init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
         mode = .diagram(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
     }
@@ -92,32 +114,37 @@ struct GraphView: View {
                             GridLinesView(config: config)
                             
                             // 2. Main Graph Layout
-                            FolderGraphLayout(root: root, config: config, selectedFile: selectedFile, isDragging: isDraggingFile)
-                                .padding(.vertical, 20)
-                                .padding(.leading, (config.columnStride - config.nodeWidth) / 2)
+                            FolderGraphLayout(
+                                root: root,
+                                config: config,
+                                selectedFile: selectedFile,
+                                activeFile: activeFile,
+                                activeFileParentName: activeFileParentName,
+                                isDragging: isDraggingFile
+                            )
+                            .padding(.vertical, 20)
+                            .padding(.leading, (config.columnStride - config.nodeWidth) / 2)
                                 
-                                // 3. Drag Interaction Layer
-                                // Use overlayPreferenceValue to layer ON TOP of the rendered graph
-                                .overlayPreferenceValue(NodeBoundsKey.self) { preferences in
-                                    GeometryReader { innerGeo in
-                                        // The 'innerGeo' here includes the padding applied to FolderGraphLayout.
-                                        // Therefore, the positions we resolve are correct relative to this overlay layer.
-                                        let positions = resolvePositions(from: preferences, in: innerGeo)
-                                        
-                                        if let file = selectedFile {
-                                            FileDragLayer(
-                                                file: file,
-                                                rootNode: root,
-                                                config: config,
-                                                nodePositions: positions,
-                                                isDragging: $isDraggingFile,
-                                                onDrop: { newFolderID in handleDrop(fileId: file.id, folderId: newFolderID) }
-                                            )
-                                            // FIX: REMOVED PADDING HERE to prevent double-shifting coordinates
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                        }
+                            // 3. Drag Interaction Layer (Only enabled if selectedFile exists)
+                            .overlayPreferenceValue(NodeBoundsKey.self) { preferences in
+                                GeometryReader { innerGeo in
+                                    let positions = resolvePositions(from: preferences, in: innerGeo)
+                                    
+                                    // Sort View Drag Layer
+                                    if let file = selectedFile {
+                                        FileDragLayer(
+                                            fileName: file.fileName,
+                                            fileId: file.id,
+                                            rootNode: root,
+                                            config: config,
+                                            nodePositions: positions,
+                                            isDragging: $isDraggingFile,
+                                            onDrop: { newFolderID in handleDrop(fileId: file.id, folderId: newFolderID) }
+                                        )
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                     }
                                 }
+                            }
                         }
                         .contentShape(Rectangle())
                         .frame(width: max(geo.size.width, geo.size.width * zoomScale), height: max(geo.size.height - 80, 400) * zoomScale, alignment: .topLeading)
@@ -176,7 +203,8 @@ struct GraphView: View {
 
 // MARK: - Drag Layer
 struct FileDragLayer: View {
-    let file: FileRowDisplay
+    let fileName: String
+    let fileId: UUID
     let rootNode: FolderNode
     let config: GraphLayoutConfig
     let nodePositions: [UUID: CGRect]
@@ -191,9 +219,8 @@ struct FileDragLayer: View {
         ZStack(alignment: .topLeading) {
             
             // 1. Invisible Touch Target
-            // We use the static position to create a hit box.
-            if let staticRect = nodePositions[file.id], !isDragging {
-                Color.white.opacity(0.001) // Transparent but interactable
+            if let staticRect = nodePositions[fileId], !isDragging {
+                Color.white.opacity(0.001)
                     .frame(width: staticRect.width, height: staticRect.height)
                     .position(x: staticRect.midX, y: staticRect.midY)
                     .gesture(
@@ -214,7 +241,7 @@ struct FileDragLayer: View {
             if isDragging {
                 let currentPoint = CGPoint(x: currentDragLocation.x + dragOffset.width, y: currentDragLocation.y + dragOffset.height)
                 
-                // A. Connection Line
+                // Connection Line
                 if let targetID = potentialTargetID, let targetRect = nodePositions[targetID] {
                     Path { path in
                         let startPoint = CGPoint(x: targetRect.maxX, y: targetRect.midY)
@@ -229,11 +256,10 @@ struct FileDragLayer: View {
                     .stroke(Color.green, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
                 }
                 
-                // B. The Avatar
-                FileNodeView(name: file.fileName, width: config.nodeWidth)
+                // Avatar
+                FileNodeView(name: fileName, width: config.nodeWidth)
                     .position(x: currentPoint.x, y: currentPoint.y)
                     .shadow(radius: 8)
-                    // Allows the user to "catch" the avatar if the gesture somehow resets but drag continues
                     .gesture(
                         DragGesture(coordinateSpace: .local)
                             .onChanged { value in
@@ -246,25 +272,20 @@ struct FileDragLayer: View {
         }
     }
     
-    // Logic: Find nearest folder on the *previous* vertical column
     func findNearestFolder(at initialPoint: CGPoint, offset: CGSize) -> UUID? {
         let currentX = initialPoint.x + offset.width
         let currentY = initialPoint.y + offset.height
         
-        // 1. Determine current column
         let currentColumnIndex = Int(currentX / config.columnStride)
-        
-        // 2. Target Column is the previous one (max 0)
         let targetColumnIndex = max(0, currentColumnIndex - 1)
         
         var bestDist = CGFloat.greatestFiniteMagnitude
         var bestID: UUID? = nil
         
         for (id, rect) in nodePositions {
-            if id == file.id { continue } // Skip self
-            if !isIDFolder(id) { continue } // Skip other files
+            if id == fileId { continue }
+            if !isIDFolder(id) { continue }
             
-            // Check column
             let nodeColumnIndex = Int(rect.midX / config.columnStride)
             
             if nodeColumnIndex == targetColumnIndex {
@@ -276,22 +297,18 @@ struct FileDragLayer: View {
             }
         }
         
-        // Fallback: If dragged too far left (col 0), snap to Root
         if bestID == nil && targetColumnIndex == 0 {
             if let rootRect = nodePositions[rootNode.id] {
                 return rootNode.id
             }
         }
-        
         return bestID
     }
     
     func isIDFolder(_ uuid: UUID) -> Bool {
         func check(_ node: FolderNode) -> Bool {
             if node.id == uuid { return true }
-            for child in node.children {
-                if check(child) { return true }
-            }
+            for child in node.children { if check(child) { return true } }
             return false
         }
         return check(rootNode)
@@ -311,33 +328,53 @@ struct FileDragLayer: View {
 struct FolderGraphLayout: View {
     let root: FolderNode
     let config: GraphLayoutConfig
+    
+    // Sort Mode
     let selectedFile: FileRowDisplay?
+    
+    // Prompt Mode
+    let activeFile: PromptFile?
+    let activeFileParentName: String?
+    
     let isDragging: Bool
 
     var body: some View {
-        RecursiveNodeView(node: root, depth: 0, config: config, selectedFile: selectedFile, isDragging: isDragging)
-            .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
-                GeometryReader { geometry in
-                    ZStack {
-                        // 1. Folder Connections
-                        ForEach(Array(preferences.keys), id: \.self) { id in
-                            if let node = findNode(id: id, in: root), !node.children.isEmpty {
-                                drawCurve(from: id, to: node.children.map { $0.id }, preferences: preferences, geometry: geometry, color: AppStyle.edgeNormalColor, dash: [])
-                            }
+        RecursiveNodeView(
+            node: root,
+            depth: 0,
+            config: config,
+            selectedFile: selectedFile,
+            activeFile: activeFile,
+            activeFileParentName: activeFileParentName,
+            isDragging: isDragging
+        )
+        .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
+            GeometryReader { geometry in
+                ZStack {
+                    // 1. Folder Connections
+                    ForEach(Array(preferences.keys), id: \.self) { id in
+                        if let node = findNode(id: id, in: root), !node.children.isEmpty {
+                            drawCurve(from: id, to: node.children.map { $0.id }, preferences: preferences, geometry: geometry, color: AppStyle.edgeNormalColor, dash: [])
                         }
-                        
-                        // 2. Selected File Connection (Static)
-                        if !isDragging, let file = selectedFile, let _ = preferences[file.id] {
-                            Group {
-                                let parentID = determineParentID(for: file, root: root)
-                                if preferences[parentID] != nil {
-                                    drawCurve(from: parentID, to: [file.id], preferences: preferences, geometry: geometry, color: .green, dash: [5, 5])
-                                }
-                            }
+                    }
+                    
+                    // 2. Selected File Connection (Sort Mode)
+                    if !isDragging, let file = selectedFile, let _ = preferences[file.id] {
+                        let parentID = determineParentID(for: file, root: root)
+                        if preferences[parentID] != nil {
+                            drawCurve(from: parentID, to: [file.id], preferences: preferences, geometry: geometry, color: .green, dash: [5, 5])
+                        }
+                    }
+                    
+                    // 3. Active File Connection (Prompt Mode)
+                    if let file = activeFile, let parentName = activeFileParentName, let parentNode = findNodeByName(name: parentName, in: root) {
+                        if preferences[parentNode.id] != nil && preferences[file.id] != nil {
+                            drawCurve(from: parentNode.id, to: [file.id], preferences: preferences, geometry: geometry, color: .green, dash: [5, 5])
                         }
                     }
                 }
             }
+        }
     }
     
     func determineParentID(for file: FileRowDisplay, root: FolderNode) -> UUID {
@@ -388,20 +425,38 @@ struct RecursiveNodeView: View {
     let node: FolderNode
     let depth: Int
     let config: GraphLayoutConfig
+    
     let selectedFile: FileRowDisplay?
+    let activeFile: PromptFile?
+    let activeFileParentName: String?
+    
     let isDragging: Bool
     
     var body: some View {
         HStack(alignment: .center, spacing: config.spacing) {
             
-            FolderItemView(name: node.name, width: config.nodeWidth, isNew: node.isNew)
+            FolderItemView(name: node.name, width: config.nodeWidth, isNew: node.isNew, isMatched: node.isMatched)
                 .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
             
-            let shouldInsertFile: Bool = {
-                guard let file = selectedFile else { return false }
-                if let dest = file.destination { return node.name == dest }
-                else { return depth == 0 } // Insert in root if unmoved (Depth 0)
+            // LOGIC: Should we insert a file here?
+            
+            // Case 1: Prompt Mode Insertion
+            let isPromptInsertion: Bool = {
+                guard let _ = activeFile, let parentName = activeFileParentName else { return false }
+                return node.name == parentName
             }()
+            
+            // Case 2: Sort Mode Insertion
+            let isSortInsertion: Bool = {
+                guard let file = selectedFile else { return false }
+                if let dest = file.destination {
+                    return node.name == dest
+                } else {
+                    return depth == 0 // Default to Root if unmoved
+                }
+            }()
+            
+            let shouldInsertFile = isPromptInsertion || isSortInsertion
             
             if !node.children.isEmpty || shouldInsertFile {
                 VStack(alignment: .leading, spacing: config.verticalSpacing) {
@@ -411,17 +466,31 @@ struct RecursiveNodeView: View {
                     let totalItems = childrenCount + (shouldInsertFile ? 1 : 0)
                     
                     ForEach(0..<totalItems, id: \.self) { i in
+                        
+                        // FILE SLOT
                         if shouldInsertFile && i == middleIndex {
-                            if let file = selectedFile {
+                            if isPromptInsertion, let file = activeFile {
+                                FileNodeView(name: file.name, width: config.nodeWidth)
+                                    .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [file.id: $0] }
+                            } else if isSortInsertion, let file = selectedFile {
                                 FileNodeView(name: file.fileName, width: config.nodeWidth)
                                     .opacity(isDragging ? 0 : 1)
                                     .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [file.id: $0] }
                             }
                         }
                         
+                        // FOLDER SLOT
                         let childIndex = (shouldInsertFile && i > middleIndex) ? i - 1 : i
                         if childIndex < childrenCount && ( !shouldInsertFile || i != middleIndex ) {
-                            RecursiveNodeView(node: node.children[childIndex], depth: depth + 1, config: config, selectedFile: selectedFile, isDragging: isDragging)
+                            RecursiveNodeView(
+                                node: node.children[childIndex],
+                                depth: depth + 1,
+                                config: config,
+                                selectedFile: selectedFile,
+                                activeFile: activeFile,
+                                activeFileParentName: activeFileParentName,
+                                isDragging: isDragging
+                            )
                         }
                     }
                 }
@@ -451,15 +520,20 @@ struct FileNodeView: View {
 }
 
 struct FolderItemView: View {
-    let name: String; let width: CGFloat; var isNew: Bool = false
+    let name: String; let width: CGFloat; var isNew: Bool = false; var isMatched: Bool = false
+    private let highlightPurple = Color(red: 0.4, green: 0.1, blue: 0.8)
+    
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "folder.fill").foregroundColor(isNew ? .green : AppStyle.folderIconColor)
+            Image(systemName: "folder.fill").foregroundColor(isMatched ? highlightPurple : (isNew ? .green : AppStyle.folderIconColor))
             Text(name).font(.system(size: 14, weight: .medium)).lineLimit(1).minimumScaleFactor(0.6).foregroundColor(.black)
         }
         .padding(.vertical, 8).padding(.horizontal, 6).frame(width: width)
         .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isNew ? Color.green.opacity(0.5) : Color.blue.opacity(0.3), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(
+            isMatched ? highlightPurple : (isNew ? Color.green.opacity(0.5) : Color.blue.opacity(0.3)),
+            lineWidth: isMatched ? 2 : 1
+        ))
     }
 }
 
@@ -486,5 +560,5 @@ struct NodeBoundsKey: PreferenceKey {
 }
 
 struct FolderNode: Identifiable {
-    let id = UUID(); let name: String; var isNew: Bool = false; var children: [FolderNode] = []
+    let id = UUID(); let name: String; var isNew: Bool = false; var isMatched: Bool = false; var children: [FolderNode] = []
 }
