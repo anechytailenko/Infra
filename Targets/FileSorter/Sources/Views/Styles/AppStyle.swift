@@ -31,11 +31,25 @@ struct AppStyle {
     static let nodeBorderOpacity: Double = 0.3
     static let nodeCornerRadius: CGFloat = 12
     static let nodePaddingHorizontal: CGFloat = 16
-    static let nodePaddingVertical: CGFloat = 10
+    static let nodePaddingVertical: CGFloat = 1
     static let nodeBorderLineWidth: CGFloat = 1
     static let nodeIconFont = Font.headline
     static let nodeTextFont = Font.system(size: 13, weight: .medium)
     static let nodeHStackSpacing: CGFloat = 8
+
+    // MARK: - Window / Title Bar
+
+    /// Height of the top control pane (traffic lights area). Minimal for normal appearance.
+    static let titleBarHeight: CGFloat = 0
+    /// Slightly lighter than screen background so the pane is subtly distinct.
+    static let titleBarBackground = Color(white: 0.93)
+    /// Separator line between title bar and main content.
+    static let titleBarSeparatorColor = Color.primary.opacity(0.2)
+    static let titleBarSeparatorHeight: CGFloat = 1
+    /// Soft shadow under the separator for depth.
+    static let titleBarSeparatorShadowColor = Color.black.opacity(0.06)
+    static let titleBarSeparatorShadowRadius: CGFloat = 2
+    static let titleBarSeparatorShadowY: CGFloat = 1
 
     // MARK: - Edges / Connections
 

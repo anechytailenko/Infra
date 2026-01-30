@@ -11,16 +11,19 @@ struct SortDecisionView: View {
             SortDecisionStyle.mainBackgroundGray
                 .ignoresSafeArea()
             
-            VStack(spacing: SortDecisionStyle.stackSpacing) {
-                topControlBar
-                diagramSection
+            VStack(spacing: 0) {
+                titleBarPane
+                VStack(spacing: SortDecisionStyle.stackSpacing) {
+                    topControlBar
+                    diagramSection
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .layoutPriority(1)
-                proposedChangesList
-                    .frame(height: SortDecisionStyle.proposedListHeight)
-                    .layoutPriority(0)
+                    proposedChangesList
+                        .frame(height: SortDecisionStyle.proposedListHeight)
+                        .layoutPriority(0)
+                }
+                .padding(SortDecisionStyle.mainPadding)
             }
-            .padding(SortDecisionStyle.mainPadding)
         }
         .frame(minWidth: SortDecisionStyle.minWidth, minHeight: SortDecisionStyle.minHeight)
         .onAppear {
@@ -30,8 +33,28 @@ struct SortDecisionView: View {
         }
     }
     
+    // MARK: - Title Bar Pane
+
+    private var titleBarPane: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: AppStyle.titleBarHeight)
+                .frame(maxWidth: .infinity)
+                .background(AppStyle.titleBarBackground)
+            Rectangle()
+                .fill(AppStyle.titleBarSeparatorColor)
+                .frame(height: AppStyle.titleBarSeparatorHeight)
+                .shadow(
+                    color: AppStyle.titleBarSeparatorShadowColor,
+                    radius: AppStyle.titleBarSeparatorShadowRadius,
+                    x: 0,
+                    y: AppStyle.titleBarSeparatorShadowY
+                )
+        }
+    }
+
     // MARK: - Top Control Bar
-    
+
     private var topControlBar: some View {
         HStack {
             Spacer()
