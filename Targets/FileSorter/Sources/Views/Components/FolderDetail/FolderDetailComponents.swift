@@ -6,6 +6,7 @@ import SwiftUI
 struct FileListView: View {
     @ObservedObject var viewModel: FolderDetailViewModel
     @State private var showFilterPopover = false
+    @State private var filterButtonHover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,8 +26,10 @@ struct FileListView: View {
                             .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
                             .frame(width: FolderDetailStyle.filterSortButtonSize, height: FolderDetailStyle.filterSortButtonSize)
                             .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                            .opacity(filterButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
                     }
                     .buttonStyle(.plain)
+                    .onHover { filterButtonHover = $0 }
                     .popover(isPresented: $showFilterPopover, arrowEdge: .bottom) {
                         VStack(alignment: .leading, spacing: 4) {
                             Button {
@@ -125,6 +128,8 @@ struct HistoryListView: View {
     let history: [HistoryItem]
     var onRevertLast: (() -> Void)? = nil
     @State private var showMenuPopover = false
+    @State private var revertButtonHover = false
+    @State private var menuButtonHover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -142,7 +147,9 @@ struct HistoryListView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                        .opacity(revertButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
                         .buttonStyle(.plain)
+                        .onHover { revertButtonHover = $0 }
                 }
                 Button {
                     showMenuPopover = true
@@ -152,8 +159,10 @@ struct HistoryListView: View {
                         .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
                         .frame(width: FolderDetailStyle.filterSortButtonSize, height: FolderDetailStyle.filterSortButtonSize)
                         .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                        .opacity(menuButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
                 }
                 .buttonStyle(.plain)
+                .onHover { menuButtonHover = $0 }
                 .popover(isPresented: $showMenuPopover, arrowEdge: .bottom) {
                     VStack(alignment: .leading, spacing: 4) {
                         Button("Sort by date") { showMenuPopover = false }

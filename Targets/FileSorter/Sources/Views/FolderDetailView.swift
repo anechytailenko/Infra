@@ -7,8 +7,8 @@ struct FolderDetailView: View {
     let folder: FolderNode?
     @StateObject private var viewModel: FolderDetailViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var showSortPopover = false
-
+    @State private var backButtonHover = false
+    @State private var sortButtonHover = false
     @State private var offset: CGSize = .zero
     @State private var lastDragPosition: CGSize = .zero
     @State private var scale: CGFloat = 1.0
@@ -38,8 +38,10 @@ struct FolderDetailView: View {
                             .foregroundStyle(AppStyle.backButtonForegroundColor)
                             .padding(.horizontal, AppStyle.backButtonPaddingHorizontal)
                             .padding(.vertical, AppStyle.backButtonPaddingVertical)
+                            .opacity(backButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
                         }
                         .buttonStyle(.plain)
+                        .onHover { backButtonHover = $0 }
                         Spacer()
                     }
                     #endif
@@ -74,30 +76,17 @@ struct FolderDetailView: View {
     private var sortBar: some View {
         HStack {
             Spacer()
-            Button {
-                showSortPopover = true
-            } label: {
-                Text("Sort")
+            Button { } label: {
+                Text("AI Sort")
                     .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
                     .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                    .opacity(sortButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
             }
             .buttonStyle(.plain)
-            .popover(isPresented: $showSortPopover, arrowEdge: .bottom) {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(SortOption.allCases, id: \.self) { option in
-                        Button(option.rawValue) {
-                            viewModel.setSort(option)
-                            showSortPopover = false
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(12)
-                .frame(minWidth: 120)
-            }
+            .onHover { sortButtonHover = $0 }
         }
     }
 

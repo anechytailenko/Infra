@@ -50,4 +50,6 @@ struct FolderDetailStyle {
     static let menuButtonCornerRadius: CGFloat = 6
     /// Icon color for menu buttons (gray so they show on white card).
     static let menuButtonIconColor = Color(white: 0.35)
+    /// Opacity when button is not hovered (hover = 1.0).
+    static let buttonHoverOpacityNormal: Double = 0.82
 }
