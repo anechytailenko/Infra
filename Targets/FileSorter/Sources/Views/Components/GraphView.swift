@@ -51,82 +51,6 @@ struct GraphNodeView: View {
     }
 }
 
-// MARK: - View Model (Comprehensive Stub)
-// HomeView's view model. Stub implementation: replace with real folder tree loading, search, and selection.
-
-class FolderStructureViewModel: ObservableObject {
-
-    // MARK: - Published state
-
-    /// Root of the folder tree shown in the graph. Replace with real loading (e.g. from file system or API).
-    @Published var rootNode: FolderNode
-
-    /// Last query submitted via search bar. Used by submitSearch(); can drive filtering or navigation when implemented.
-    @Published var lastSearchQuery: String = ""
-
-    /// True while a search or load is in progress. UI can show a loading indicator when implemented.
-    @Published var isSearching: Bool = false
-
-    /// Optional: root URL to load the tree from (e.g. user's home or a chosen directory). Not used in stub.
-    var rootURL: URL? { nil }
-
-    // MARK: - Initialization
-
-    init() {
-        self.rootNode = Self.makeStubTree()
-    }
-
-    /// Stub: build a static folder tree for UI development. Replace with loadTree(from:) or similar.
-    private static func makeStubTree() -> FolderNode {
-        FolderNode(name: "Root", children: [
-            FolderNode(name: "Project_Docs", children: [
-                FolderNode(name: "Client_Reports", children: [
-                    FolderNode(name: "Client_Report_Q1"),
-                    FolderNode(name: "Client_Report_Q2")
-                ]),
-                FolderNode(name: "Shared_Assets", children: [
-                    FolderNode(name: "Eiomnal_Assets", children: [
-                        FolderNode(name: "Source_Files")
-                    ]),
-                    FolderNode(name: "Logos"),
-                    FolderNode(name: "Templates")
-                ]),
-                FolderNode(name: "Marketing_Materials"),
-                FolderNode(name: "Internal_Docs")
-            ])
-        ])
-    }
-
-    // MARK: - Loading (stubs)
-
-    /// Load the folder tree from the given URL (or default root). Replace with real file system traversal.
-    func loadRootFolder(from url: URL? = nil) {
-        // Stub: no-op. When implemented: enumerate directory, build FolderNode tree, set rootNode.
-    }
-
-    /// Reload the current tree (e.g. after external changes). Stub: no-op.
-    func reload() {
-        // Stub: when implemented, re-read from rootURL and update rootNode.
-    }
-
-    // MARK: - Search (stubs)
-
-    /// Called when the user submits the search bar (Enter or button). Replace with real search/filter logic.
-    func submitSearch(query: String? = nil) {
-        lastSearchQuery = query ?? ""
-        isSearching = true
-        // Stub: when implemented, run search (e.g. filter tree, call API), then set isSearching = false.
-        isSearching = false
-    }
-
-    // MARK: - Selection (stubs)
-
-    /// Called when the user selects a folder in the graph. Navigation is handled by HomeView; use this for side effects (e.g. analytics, preload detail).
-    func didSelectFolder(_ node: FolderNode?) {
-        // Stub: when implemented, e.g. track selection, preload FolderDetailViewModel for node.
-    }
-}
-
 // MARK: - Graph View (folder tree or diagram mode)
 
 struct GraphView: View {
@@ -287,6 +211,7 @@ struct RecursiveNodeView: View {
     let node: FolderNode
     let depth: Int
     var onFolderSelected: ((FolderNode) -> Void)? = nil
+    @State private var isHovering = false
 
     var body: some View {
         HStack(alignment: .center, spacing: GraphViewStyle.folderGraphHStackSpacing) {
@@ -308,10 +233,15 @@ struct RecursiveNodeView: View {
             .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
 
         if let onFolderSelected = onFolderSelected {
-            Button { onFolderSelected(node) } label: { itemView }
-                .buttonStyle(PlainButtonStyle())
+            Button { onFolderSelected(node) } label: {
+                itemView
+                    .scaleEffect(isHovering ? 1.05 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: isHovering)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .onHover { isHovering = $0 }
         } else if node.name == "Root" {
-            NavigationLink(destination: FolderDetailView()) { itemView }
+            NavigationLink(destination: FolderDetailView(folder: node)) { itemView }
                 .buttonStyle(PlainButtonStyle())
         } else {
             itemView
@@ -349,10 +279,4 @@ struct NodeBoundsKey: PreferenceKey {
     static func reduce(value: inout Value, nextValue: () -> Value) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
-}
-
-struct FolderNode: Identifiable {
-    let id = UUID()
-    let name: String
-    var children: [FolderNode] = []
 }

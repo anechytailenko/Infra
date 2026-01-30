@@ -57,4 +57,15 @@ struct AppStyle {
 
     static let edgeNormalColor = Color.blue.opacity(0.4)
     static let edgeNormalLineWidth: CGFloat = 2
+
+    // MARK: - Back Button (shared across FolderDetailView, SearchResultsStubView, etc.)
+
+    static let backButtonIcon = "chevron.left"
+    static let backButtonLabel = "Back"
+    static let backButtonFont = Font.system(size: bodyFontSize, weight: .medium)
+    static let backButtonForegroundColor = textPrimary
+    static let backButtonPaddingHorizontal: CGFloat = 12
+    static let backButtonPaddingVertical: CGFloat = 8
+    static let backButtonCornerRadius: CGFloat = 8
+    static let backButtonHStackSpacing: CGFloat = 6
 }

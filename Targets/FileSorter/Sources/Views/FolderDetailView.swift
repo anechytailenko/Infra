@@ -2,13 +2,16 @@ import SwiftUI
 import Combine
 
 // MARK: - View Model (Stub)
-// Stub: replace with real folder detail loading (e.g. constructor taking FolderNode for "show this folder").
+// Stub: replace with real folder detail loading. init(folder:) will drive loading of file contents for that folder.
 class FolderDetailViewModel: ObservableObject {
     @Published var rootNode: SimpleNode
     @Published var files: [FileItem] = []
     @Published var history: [HistoryItem] = []
-    
-    init() {
+    /// Folder selected from HomeView; later used to load file contents.
+    let folder: FolderNode?
+
+    init(folder: FolderNode? = nil) {
+        self.folder = folder
         self.rootNode = SimpleNode(name: "User", children: [
             SimpleNode(name: "Desktop"),
             SimpleNode(name: "Downloads"),
@@ -31,14 +34,38 @@ class FolderDetailViewModel: ObservableObject {
 
 // MARK: - Main Detail View
 struct FolderDetailView: View {
-    @StateObject private var viewModel = FolderDetailViewModel()
-    
+    let folder: FolderNode?
+    @StateObject private var viewModel: FolderDetailViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    init(folder: FolderNode? = nil) {
+        self.folder = folder
+        _viewModel = StateObject(wrappedValue: FolderDetailViewModel(folder: folder))
+    }
+
     var body: some View {
         ZStack {
             Color(red: 0.92, green: 0.92, blue: 0.94).edgesIgnoringSafeArea(.all)
-            
+
             ScrollView {
                 VStack(spacing: 20) {
+                    #if os(macOS)
+                    HStack {
+                        Button { dismiss() } label: {
+                            HStack(spacing: AppStyle.backButtonHStackSpacing) {
+                                Image(systemName: AppStyle.backButtonIcon)
+                                    .font(AppStyle.backButtonFont)
+                                Text(AppStyle.backButtonLabel)
+                                    .font(AppStyle.backButtonFont)
+                            }
+                            .foregroundStyle(AppStyle.backButtonForegroundColor)
+                            .padding(.horizontal, AppStyle.backButtonPaddingHorizontal)
+                            .padding(.vertical, AppStyle.backButtonPaddingVertical)
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                    }
+                    #endif
                     TopGraphContainer(rootNode: viewModel.rootNode)
                     FileListView(files: viewModel.files)
                     HistoryListView(history: viewModel.history)
@@ -48,7 +75,22 @@ struct FolderDetailView: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationTitle("Folder Details")
+        .navigationTitle(folder.map { $0.name } ?? "Folder Details")
+        #if os(iOS)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { dismiss() } label: {
+                    HStack(spacing: AppStyle.backButtonHStackSpacing) {
+                        Image(systemName: AppStyle.backButtonIcon)
+                            .font(AppStyle.backButtonFont)
+                        Text(AppStyle.backButtonLabel)
+                            .font(AppStyle.backButtonFont)
+                    }
+                    .foregroundStyle(AppStyle.backButtonForegroundColor)
+                }
+            }
+        }
+        #endif
     }
 }
 

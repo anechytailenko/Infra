@@ -4,11 +4,9 @@ import SwiftUI
 // Container that includes SearchView and GraphView.
 
 struct HomeView: View {
-    @StateObject private var viewModel = FolderStructureViewModel()
-    @State private var searchText = ""
-    @State private var selectedFolder: FolderNode?
+    @StateObject private var viewModel = HomeViewModel()
 
-    // State for pan/zoom gestures
+    // State for pan/zoom gestures (UI-only)
     @State private var offset: CGSize = .zero
     @State private var lastDragPosition: CGSize = .zero
     @State private var scale: CGFloat = 1.0
@@ -22,7 +20,7 @@ struct HomeView: View {
 
                 VStack(spacing: 0) {
                     titleBarPane
-                    SearchView(searchText: $searchText, exampleQuery: "file invoices", onSort: { viewModel.submitSearch(query: searchText) })
+                    SearchView(searchText: $viewModel.searchQuery, exampleQuery: "file invoices", onSort: { viewModel.submitSearch() })
                     Text("Select any folder to arrange files✨")
                         .font(AppStyle.headlineFont)
                         .fontWeight(.semibold)
@@ -35,14 +33,24 @@ struct HomeView: View {
                         .padding(GraphViewStyle.mainPadding)
                 }
                 .background(
-                    NavigationLink(
-                        destination: FolderDetailView(),
-                        isActive: Binding(
-                            get: { selectedFolder != nil },
-                            set: { if !$0 { selectedFolder = nil } }
-                        )
-                    ) { EmptyView() }
-                    .hidden()
+                    Group {
+                        NavigationLink(
+                            destination: FolderDetailView(folder: viewModel.selectedFolder),
+                            isActive: Binding(
+                                get: { viewModel.selectedFolder != nil },
+                                set: { if !$0 { viewModel.clearFolderSelection() } }
+                            )
+                        ) { EmptyView() }
+                        .hidden()
+                        NavigationLink(
+                            destination: SearchResultsStubView(query: viewModel.searchResultsQuery ?? "", onDismiss: { viewModel.clearSearchResults() }),
+                            isActive: Binding(
+                                get: { viewModel.searchResultsQuery != nil },
+                                set: { if !$0 { viewModel.clearSearchResults() } }
+                            )
+                        ) { EmptyView() }
+                        .hidden()
+                    }
                 )
             }
         }
@@ -51,10 +59,7 @@ struct HomeView: View {
     // MARK: - Graph Section
 
     private var graphSection: some View {
-        GraphView(root: viewModel.rootNode, onFolderSelected: { node in
-            selectedFolder = node
-            viewModel.didSelectFolder(node)
-        })
+        GraphView(root: viewModel.rootNode, onFolderSelected: { viewModel.selectFolder($0) })
             .scaleEffect(scale)
             .offset(x: offset.width, y: offset.height)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
