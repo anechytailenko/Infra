@@ -1,5 +1,6 @@
 import Foundation
 
+
 // MARK: - File Row Display (for FileMoveListView)
 
 struct FileRowDisplay: Identifiable {
@@ -12,6 +13,13 @@ struct FileRowDisplay: Identifiable {
         self.fileName = fileName
         self.destination = destination
     }
+// MARK: - Shared Models
+
+struct FileMoveAction: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let destination: String
+
 }
 
 // MARK: - Proposed File Move (list row + diagram from/to)

@@ -65,6 +65,7 @@ struct FileMoveListView: View {
                                 .cornerRadius(8)
                                 .shadow(radius: 4)
                         }
+
                     }
                 }
             }
