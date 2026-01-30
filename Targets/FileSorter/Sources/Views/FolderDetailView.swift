@@ -63,7 +63,7 @@ struct FolderDetailView: View {
         }
         .background(
             NavigationLink(
-                destination: SortDecisionView(),
+                destination: sortDecisionDestination,
                 isActive: Binding(
                     get: { viewModel.shouldNavigateToSortDecision },
                     set: { viewModel.shouldNavigateToSortDecision = $0 }
@@ -72,6 +72,16 @@ struct FolderDetailView: View {
             .hidden()
         )
         .navigationTitle(folder.map { $0.name } ?? "Folder Details")
+        .alert("Error", isPresented: $viewModel.showErrorAlert) {
+            Button("Retry") {
+                viewModel.startAISort()
+            }
+            Button("Dismiss", role: .cancel) {
+                viewModel.dismissError()
+            }
+        } message: {
+            Text(viewModel.errorMessage ?? "An unknown error occurred.")
+        }
         #if os(iOS)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -137,6 +147,16 @@ struct FolderDetailView: View {
         }
     }
 
+    /// Destination view for sort decision, initialized with AI response if available
+    @ViewBuilder
+    private var sortDecisionDestination: some View {
+        if let aiResponse = viewModel.aiSuggestionsResponse {
+            SortDecisionView(aiResponse: aiResponse)
+        } else {
+            SortDecisionView()
+        }
+    }
+    
     private var graphCard: some View {
         GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil)
             .scaleEffect(scale)

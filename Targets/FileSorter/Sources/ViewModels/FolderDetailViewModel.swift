@@ -1,15 +1,18 @@
 import Foundation
 import Combine
 
-// MARK: - FolderDetailViewModel (Stub)
-// Stub: replace with real folder detail loading. init(folder:) will drive loading of file contents for that folder.
-// Filter and sort are in-memory stubs over the stub files array.
+// MARK: - FolderDetailViewModel
+// View model for FolderDetailView. Manages file list, history, filters, and AI sort operations.
+// Calls POST /api/ai/suggest when AI Sort is triggered.
 
 @MainActor
 final class FolderDetailViewModel: ObservableObject {
     
-    /// Folder selected from HomeView; later used to load file contents.
+    /// Folder selected from HomeView; used to derive the root directory path.
     let folder: FolderNode?
+    
+    /// The root directory path for API calls (derived from folder or filesystem response).
+    var rootDirectoryPath: String = ""
     
     @Published var files: [FileItem] = []
     @Published var history: [HistoryItem] = []
@@ -18,23 +21,43 @@ final class FolderDetailViewModel: ObservableObject {
     @Published var showFiles: Bool = true
     @Published var showFolders: Bool = true
     
-    // MARK: - AI Sort loading state
+    // MARK: - AI Sort State
     
     /// True while the AI sort request is in progress (loading overlay visible).
     @Published var isSortingInProgress: Bool = false
     /// Set to true when loading completes successfully; drives programmatic navigation to SortDecisionView.
     @Published var shouldNavigateToSortDecision: Bool = false
+    /// The AI suggestions response (passed to SortDecisionView).
+    @Published var aiSuggestionsResponse: AISuggestResponse?
     /// Cancellable task for the AI sort operation.
     private var sortTask: Task<Void, Never>?
+    
+    // MARK: - Error State
+    
+    /// Error message to display (nil if no error)
+    @Published var errorMessage: String?
+    /// Whether to show an alert for critical errors
+    @Published var showErrorAlert: Bool = false
+    
+    // MARK: - Dependencies
+    
+    private let httpClient: HTTPClient
     
     /// Stub tree for GraphView (same structure as legacy User/Desktop/Downloads/Files).
     let folderGraphRoot: FolderNode
     
-    init(folder: FolderNode? = nil) {
+    init(folder: FolderNode? = nil, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
         self.folder = folder
+        self.httpClient = httpClient
         self.folderGraphRoot = Self.makeStubGraphTree()
         self.files = Self.makeStubFiles()
         self.history = Self.makeStubHistory()
+    }
+    
+    /// Initialize with a specific root directory path (for when coming from HomeView with API data)
+    convenience init(folder: FolderNode?, rootDirectoryPath: String, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+        self.init(folder: folder, httpClient: httpClient)
+        self.rootDirectoryPath = rootDirectoryPath
     }
     
     private static func makeStubGraphTree() -> FolderNode {
@@ -61,7 +84,7 @@ final class FolderDetailViewModel: ObservableObject {
         ]
     }
     
-    /// Filtered and sorted file list (stub: in-memory filter by showFiles/kind, then sort).
+    /// Filtered and sorted file list (in-memory filter by showFiles/kind, then sort).
     var filteredAndSortedFiles: [FileItem] {
         var list: [FileItem] = []
         if showFiles {
@@ -101,23 +124,61 @@ final class FolderDetailViewModel: ObservableObject {
         history = Array(history.dropFirst())
     }
     
+    /// Clears the current error state
+    func dismissError() {
+        errorMessage = nil
+        showErrorAlert = false
+    }
+    
     // MARK: - AI Sort Actions
     
-    /// Start the AI sort operation. Shows loading overlay; on success, triggers navigation to SortDecisionView.
+    /// Start the AI sort operation. Calls POST /api/ai/suggest and navigates to SortDecisionView on success.
     func startAISort() {
         guard !isSortingInProgress else { return }
         isSortingInProgress = true
         shouldNavigateToSortDecision = false
+        errorMessage = nil
         
         sortTask = Task { [weak self] in
-            // Stub: simulate async work (e.g. AI service call) with a 2-second delay
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            
             guard let self = self else { return }
-            guard !Task.isCancelled else { return }
             
-            self.isSortingInProgress = false
-            self.shouldNavigateToSortDecision = true
+            do {
+                let request = AISuggestRequest(rootDirectory: self.rootDirectoryPath)
+                let response: AISuggestResponse = try await self.httpClient.post(
+                    endpoint: APIConfiguration.Endpoints.aiSuggest,
+                    body: request
+                )
+                
+                guard !Task.isCancelled else { return }
+                
+                self.aiSuggestionsResponse = response
+                self.isSortingInProgress = false
+                self.shouldNavigateToSortDecision = true
+                
+                // Add to history on successful sort
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "'Today at' HH:mm"
+                let historyItem = HistoryItem(
+                    status: "sorted",
+                    date: dateFormatter.string(from: Date()),
+                    isSuccess: response.isSuccess
+                )
+                self.history.insert(historyItem, at: 0)
+                
+            } catch let error as APIError {
+                guard !Task.isCancelled else { return }
+                
+                self.isSortingInProgress = false
+                self.errorMessage = error.errorDescription
+                self.showErrorAlert = error.isCritical
+                
+            } catch {
+                guard !Task.isCancelled else { return }
+                
+                self.isSortingInProgress = false
+                self.errorMessage = error.localizedDescription
+                self.showErrorAlert = true
+            }
         }
     }
     

@@ -3,14 +3,21 @@ import Combine
 
 // MARK: - HomeViewModel
 // View model for HomeView. Owns folder tree, search state, and navigation intent (folder detail / search results).
-// Stub implementation: replace with real folder loading and search when services are added.
+// Fetches filesystem from backend API via HTTPClient.
 
+@MainActor
 final class HomeViewModel: ObservableObject {
 
     // MARK: - Published state
 
     /// Root of the folder tree shown in the graph.
     @Published var rootNode: FolderNode
+    
+    /// The current filesystem path being displayed
+    @Published var currentPath: String = ""
+    
+    /// Raw API response for the filesystem (used by detail views)
+    @Published var filesystemResponse: FSNodeResponse?
 
     /// Search bar text; two-way binding from HomeView.
     @Published var searchQuery: String = ""
@@ -20,13 +27,80 @@ final class HomeViewModel: ObservableObject {
 
     /// Non-nil when user has submitted search and we should push the search-results screen.
     @Published var searchResultsQuery: String?
-
+    
+    // MARK: - Loading & Error State
+    
+    /// True while loading filesystem from API
+    @Published var isLoading: Bool = false
+    
+    /// Error message to display (nil if no error)
+    @Published var errorMessage: String?
+    
+    /// Whether to show an alert for critical errors
+    @Published var showErrorAlert: Bool = false
+    
+    // MARK: - Dependencies
+    
+    private let httpClient: HTTPClient
+    
     // MARK: - Initialization
 
-    init() {
-        self.rootNode = Self.makeStubTree()
+    init(httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+        self.httpClient = httpClient
+        self.rootNode = FolderNode(name: "Loading...", children: [])
+    }
+    
+    // MARK: - API Actions
+    
+    /// Fetches the filesystem tree from the backend.
+    /// - Parameter path: The absolute path on the host to scan (e.g., "/Users/jdoe/Downloads")
+    func fetchFilesystem(path: String) async {
+        isLoading = true
+        errorMessage = nil
+        currentPath = path
+        
+        do {
+            let response: FSNodeResponse = try await httpClient.get(
+                endpoint: APIConfiguration.Endpoints.filesystem,
+                queryParams: ["path": path]
+            )
+            
+            filesystemResponse = response
+            rootNode = response.toFolderNode()
+            isLoading = false
+            
+        } catch let error as APIError {
+            isLoading = false
+            errorMessage = error.errorDescription
+            showErrorAlert = error.isCritical
+            
+            // Show stub data on error for development
+            rootNode = Self.makeStubTree()
+            
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+            
+            // Show stub data on error for development
+            rootNode = Self.makeStubTree()
+        }
+    }
+    
+    /// Retry fetching with the last used path
+    func retryFetch() async {
+        guard !currentPath.isEmpty else { return }
+        await fetchFilesystem(path: currentPath)
+    }
+    
+    /// Clears the current error state
+    func dismissError() {
+        errorMessage = nil
+        showErrorAlert = false
     }
 
+    // MARK: - Stub Data (fallback)
+    
     private static func makeStubTree() -> FolderNode {
         FolderNode(name: "Root", children: [
             FolderNode(name: "Project_Docs", children: [
@@ -47,7 +121,7 @@ final class HomeViewModel: ObservableObject {
         ])
     }
 
-    // MARK: - Actions
+    // MARK: - Navigation Actions
 
     /// Called when the user taps a folder in the graph. Sets selectedFolder to drive navigation.
     func selectFolder(_ node: FolderNode?) {

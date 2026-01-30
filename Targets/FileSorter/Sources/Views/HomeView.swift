@@ -52,6 +52,21 @@ struct HomeView: View {
                         .hidden()
                     }
                 )
+                
+                // Loading overlay
+                if viewModel.isLoading {
+                    loadingOverlay
+                }
+            }
+            .alert("Error", isPresented: $viewModel.showErrorAlert) {
+                Button("Retry") {
+                    Task { await viewModel.retryFetch() }
+                }
+                Button("Dismiss", role: .cancel) {
+                    viewModel.dismissError()
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "An unknown error occurred.")
             }
         }
     }
@@ -59,36 +74,99 @@ struct HomeView: View {
     // MARK: - Graph Section
 
     private var graphSection: some View {
-        GraphView(root: viewModel.rootNode, onFolderSelected: { viewModel.selectFolder($0) })
-            .scaleEffect(scale)
-            .offset(x: offset.width, y: offset.height)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .gesture(
-                SimultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            offset = CGSize(
-                                width: lastDragPosition.width + value.translation.width,
-                                height: lastDragPosition.height + value.translation.height
-                            )
-                        }
-                        .onEnded { _ in
-                            lastDragPosition = offset
-                        },
-                    MagnificationGesture()
-                        .onChanged { value in
-                            let newScale = lastScale * value
-                            scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
-                        }
-                        .onEnded { _ in
-                            lastScale = scale
-                        }
+        ZStack {
+            GraphView(root: viewModel.rootNode, onFolderSelected: { viewModel.selectFolder($0) })
+                .scaleEffect(scale)
+                .offset(x: offset.width, y: offset.height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .gesture(
+                    SimultaneousGesture(
+                        DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: lastDragPosition.width + value.translation.width,
+                                    height: lastDragPosition.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                lastDragPosition = offset
+                            },
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let newScale = lastScale * value
+                                scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                            }
+                    )
                 )
-            )
-            .background(AppStyle.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
-            .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
+            
+            // Inline error state (recoverable errors)
+            if let errorMessage = viewModel.errorMessage, !viewModel.showErrorAlert {
+                inlineErrorView(message: errorMessage)
+            }
+        }
+        .background(AppStyle.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
+        .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
+    }
+    
+    // MARK: - Loading Overlay
+    
+    private var loadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppStyle.textPrimary))
+                
+                Text("Loading filesystem...")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(AppStyle.cardBackground)
+            }
+            .padding(30)
+            .background(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius).fill(Color.black.opacity(0.6)))
+        }
+    }
+    
+    // MARK: - Inline Error View
+    
+    private func inlineErrorView(message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+                .foregroundStyle(AppStyle.textSecondary)
+            
+            Text(message)
+                .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                .foregroundStyle(AppStyle.textSecondary)
+                .multilineTextAlignment(.center)
+            
+            Button {
+                Task { await viewModel.retryFetch() }
+            } label: {
+                Text("Retry")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: .medium))
+                    .foregroundStyle(AppStyle.textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(AppStyle.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(AppStyle.textSecondary.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(24)
+        .background(AppStyle.cardBackground.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
     }
 
     private var titleBarPane: some View {

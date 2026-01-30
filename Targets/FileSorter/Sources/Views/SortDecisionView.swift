@@ -4,7 +4,18 @@ import SwiftUI
 
 struct SortDecisionView: View {
     
-    @StateObject private var viewModel = SortDecisionViewModel()
+    @StateObject private var viewModel: SortDecisionViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    /// Initialize with mock data (default)
+    init() {
+        _viewModel = StateObject(wrappedValue: SortDecisionViewModel())
+    }
+    
+    /// Initialize with AI suggestions response from the API
+    init(aiResponse: AISuggestResponse) {
+        _viewModel = StateObject(wrappedValue: SortDecisionViewModel(aiResponse: aiResponse))
+    }
     
     var body: some View {
         ZStack {
@@ -24,12 +35,53 @@ struct SortDecisionView: View {
                 }
                 .padding(SortDecisionStyle.mainPadding)
             }
+            
+            // Loading overlay when executing
+            if viewModel.isExecuting {
+                executingOverlay
+            }
         }
         .frame(minWidth: SortDecisionStyle.minWidth, minHeight: SortDecisionStyle.minHeight)
         .onAppear {
             if let firstMove = viewModel.effectiveMoves.first {
                 viewModel.selectMove(id: firstMove.id)
             }
+        }
+        .onChange(of: viewModel.executionComplete) { complete in
+            if complete {
+                dismiss()
+            }
+        }
+        .alert("Error", isPresented: $viewModel.showErrorAlert) {
+            Button("Retry") {
+                viewModel.acceptAll()
+            }
+            Button("Dismiss", role: .cancel) {
+                viewModel.dismissError()
+            }
+        } message: {
+            Text(viewModel.errorMessage ?? "An unknown error occurred.")
+        }
+    }
+    
+    // MARK: - Executing Overlay
+    
+    private var executingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppStyle.textPrimary))
+                
+                Text("Executing moves...")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(AppStyle.cardBackground)
+            }
+            .padding(30)
+            .background(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius).fill(Color.black.opacity(0.6)))
         }
     }
     

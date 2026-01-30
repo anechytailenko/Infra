@@ -1,8 +1,10 @@
 import Foundation
 import Combine
 
-// MARK: - SortDecisionViewModel (mocked)
+// MARK: - SortDecisionViewModel
+// View model for SortDecisionView. Manages proposed file moves and executes accepted actions via API.
 
+@MainActor
 final class SortDecisionViewModel: ObservableObject {
 
     // MARK: - Published State
@@ -11,10 +13,37 @@ final class SortDecisionViewModel: ObservableObject {
     @Published var selectedMoveId: UUID?
     @Published private(set) var diagramNodes: [DiagramNode]
     @Published private(set) var diagramEdges: [DiagramEdge]
+    
+    // MARK: - Execution State
+    
+    /// True while executing file moves
+    @Published var isExecuting: Bool = false
+    /// True when execution completes successfully
+    @Published var executionComplete: Bool = false
+    
+    // MARK: - Error State
+    
+    /// Error message to display (nil if no error)
+    @Published var errorMessage: String?
+    /// Whether to show an alert for critical errors
+    @Published var showErrorAlert: Bool = false
+    
+    // MARK: - API Data
+    
+    /// Original proposed actions from the AI response (used for execute request)
+    private var originalProposedActions: [ProposedAction] = []
+    /// Mapping from ProposedFileMove ID to ProposedAction
+    private var moveToActionMap: [UUID: ProposedAction] = [:]
+    
+    // MARK: - Dependencies
+    
+    private let httpClient: HTTPClient
 
-    // MARK: - Init (mock data)
+    // MARK: - Init (mock data fallback)
 
-    init() {
+    init(httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+        self.httpClient = httpClient
+        
         let rootId = UUID()
         let imgId = UUID()
         let desktopId = UUID()
@@ -47,11 +76,104 @@ final class SortDecisionViewModel: ObservableObject {
         self.selectedMoveId = nil
         rebuildDiagramEdges()
     }
+    
+    /// Initialize with AI suggestions response from the API
+    convenience init(aiResponse: AISuggestResponse, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+        self.init(httpClient: httpClient)
+        
+        self.originalProposedActions = aiResponse.proposedActions
+        
+        // Build diagram nodes from unique folders
+        let rootId = UUID()
+        var folderIds: [String: UUID] = [:]
+        var nodes: [DiagramNode] = []
+        
+        // Add root node
+        let rootNode = DiagramNode(id: rootId, name: "Root", isFolder: true, isAICreated: false)
+        nodes.append(rootNode)
+        
+        // Add folder nodes for each unique suggested folder
+        for folderName in aiResponse.proposedActions.uniqueSuggestedFolders {
+            let folderId = UUID()
+            folderIds[folderName] = folderId
+            let isAICreated = true // AI-suggested folders
+            let folderNode = DiagramNode(id: folderId, name: folderName, isFolder: true, isAICreated: isAICreated)
+            nodes.append(folderNode)
+        }
+        
+        self.diagramNodes = nodes
+        
+        // Convert ProposedActions to ProposedFileMoves
+        var moves: [ProposedFileMove] = []
+        for action in aiResponse.proposedActions {
+            let toParentId = folderIds[action.suggestedFolder] ?? rootId
+            let move = ProposedFileMove(
+                fileName: action.fileName,
+                fromParentId: rootId,
+                fromParentName: action.fromFolderName,
+                toParentId: toParentId,
+                toParentName: action.suggestedFolder
+            )
+            moves.append(move)
+            moveToActionMap[move.id] = action
+        }
+        
+        self.proposedMoves = moves
+        rebuildDiagramEdges()
+    }
 
     // MARK: - Actions
 
+    /// Execute all accepted (non-declined) file moves via POST /api/fs/execute
     func acceptAll() {
-        // Placeholder: in real flow would apply moves
+        guard !isExecuting else { return }
+        
+        // Get accepted actions
+        let acceptedMoveIds = Set(effectiveMoves.map { $0.id })
+        let acceptedActions = originalProposedActions.filter { action in
+            // Find the move that corresponds to this action
+            moveToActionMap.contains { $0.value.originalPath == action.originalPath && acceptedMoveIds.contains($0.key) }
+        }
+        
+        // If no API actions (mock mode), just mark as complete
+        guard !acceptedActions.isEmpty else {
+            executionComplete = true
+            return
+        }
+        
+        isExecuting = true
+        errorMessage = nil
+        
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            do {
+                let request = acceptedActions.toExecuteRequest()
+                let response: ExecuteResponse = try await self.httpClient.post(
+                    endpoint: APIConfiguration.Endpoints.execute,
+                    body: request
+                )
+                
+                self.isExecuting = false
+                
+                if response.isSuccess {
+                    self.executionComplete = true
+                } else {
+                    self.errorMessage = "Server returned unsuccessful status"
+                    self.showErrorAlert = true
+                }
+                
+            } catch let error as APIError {
+                self.isExecuting = false
+                self.errorMessage = error.errorDescription
+                self.showErrorAlert = error.isCritical
+                
+            } catch {
+                self.isExecuting = false
+                self.errorMessage = error.localizedDescription
+                self.showErrorAlert = true
+            }
+        }
     }
 
     func declineAll() {
@@ -81,6 +203,12 @@ final class SortDecisionViewModel: ObservableObject {
         selectedMoveId = id
         rebuildDiagramEdges()
     }
+    
+    /// Clears the current error state
+    func dismissError() {
+        errorMessage = nil
+        showErrorAlert = false
+    }
 
     // MARK: - Helpers
 
@@ -94,7 +222,7 @@ final class SortDecisionViewModel: ObservableObject {
     }
 
     private func rebuildDiagramEdges() {
-        let rootId = diagramNodes.first { $0.name == "User" }?.id ?? UUID()
+        let rootId = diagramNodes.first { $0.name == "Root" || $0.name == "User" }?.id ?? UUID()
         var edges: [DiagramEdge] = diagramNodes
             .filter { $0.id != rootId }
             .map { DiagramEdge(fromId: rootId, toId: $0.id, style: .normal) }
