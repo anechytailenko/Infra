@@ -43,45 +43,20 @@ final class FolderDetailViewModel: ObservableObject {
     
     private let httpClient: HTTPClient
     
-    /// Stub tree for GraphView (same structure as legacy User/Desktop/Downloads/Files).
-    let folderGraphRoot: FolderNode
+    /// Folder tree for GraphView (derived from the selected folder).
+    @Published var folderGraphRoot: FolderNode
     
     init(folder: FolderNode? = nil, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
         self.folder = folder
         self.httpClient = httpClient
-        self.folderGraphRoot = Self.makeStubGraphTree()
-        self.files = Self.makeStubFiles()
-        self.history = Self.makeStubHistory()
+        // Use the folder itself as the graph root, or an empty placeholder
+        self.folderGraphRoot = folder ?? FolderNode(name: "No folder selected", children: [])
     }
     
     /// Initialize with a specific root directory path (for when coming from HomeView with API data)
     convenience init(folder: FolderNode?, rootDirectoryPath: String, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
         self.init(folder: folder, httpClient: httpClient)
         self.rootDirectoryPath = rootDirectoryPath
-    }
-    
-    private static func makeStubGraphTree() -> FolderNode {
-        FolderNode(name: "User", children: [
-            FolderNode(name: "Desktop"),
-            FolderNode(name: "Downloads"),
-            FolderNode(name: "Files")
-        ])
-    }
-    
-    private static func makeStubFiles() -> [FileItem] {
-        [
-            FileItem(path: "/User/Desktop", name: "IMG_8032.heic", date: Date(), size: 1400000),
-            FileItem(path: "/User/Downloads", name: "IMG_8031.heic", date: Date().addingTimeInterval(-300), size: 1300000),
-            FileItem(path: "/User/Docs", name: "Gemini_Generated.png", date: Date().addingTimeInterval(-1200), size: 1900000)
-        ]
-    }
-    
-    private static func makeStubHistory() -> [HistoryItem] {
-        [
-            HistoryItem(status: "sorted", date: "Today at 19:05", isSuccess: true),
-            HistoryItem(status: "sorted", date: "Today at 18:59", isSuccess: true),
-            HistoryItem(status: "sorted", date: "Today at 18:37", isSuccess: true)
-        ]
     }
     
     /// Filtered and sorted file list (in-memory filter by showFiles/kind, then sort).

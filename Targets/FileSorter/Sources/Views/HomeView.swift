@@ -75,7 +75,11 @@ struct HomeView: View {
 
     private var graphSection: some View {
         ZStack {
-            GraphView(root: viewModel.rootNode, onFolderSelected: { viewModel.selectFolder($0) })
+            // Folders are only clickable when data is available from API
+            GraphView(
+                root: viewModel.rootNode,
+                onFolderSelected: viewModel.isDataAvailable ? { viewModel.selectFolder($0) } : nil
+            )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

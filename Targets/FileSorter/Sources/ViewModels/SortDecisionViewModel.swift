@@ -39,48 +39,22 @@ final class SortDecisionViewModel: ObservableObject {
     
     private let httpClient: HTTPClient
 
-    // MARK: - Init (mock data fallback)
+    // MARK: - Initialization
 
+    /// Default initializer with empty data.
+    /// Use init(aiResponse:) when navigating from FolderDetailView with AI suggestions.
     init(httpClient: HTTPClient = URLSessionHTTPClient.shared) {
         self.httpClient = httpClient
-        
-        let rootId = UUID()
-        let imgId = UUID()
-        let desktopId = UUID()
-        let filesId = UUID()
-
-        let rootNode = DiagramNode(id: rootId, name: "User", isFolder: true, isAICreated: false)
-        let imgNode = DiagramNode(id: imgId, name: "Img", isFolder: true, isAICreated: false)
-        let desktopNode = DiagramNode(id: desktopId, name: "Desktop", isFolder: true, isAICreated: false)
-        let filesNode = DiagramNode(id: filesId, name: "Files", isFolder: true, isAICreated: true)
-
-        self.diagramNodes = [rootNode, imgNode, desktopNode, filesNode]
-
-        let normalEdges = [
-            DiagramEdge(fromId: rootId, toId: imgId, style: .normal),
-            DiagramEdge(fromId: rootId, toId: desktopId, style: .normal),
-            DiagramEdge(fromId: rootId, toId: filesId, style: .normal)
-        ]
-
-        self.diagramEdges = normalEdges
-
-        self.proposedMoves = [
-            ProposedFileMove(fileName: "file_01", fromParentId: rootId, fromParentName: "User", toParentId: imgId, toParentName: "Img"),
-            ProposedFileMove(fileName: "file_02", fromParentId: rootId, fromParentName: "User", toParentId: desktopId, toParentName: "Desktop"),
-            ProposedFileMove(fileName: "file_03", fromParentId: rootId, fromParentName: "User", toParentId: filesId, toParentName: "Files"),
-            ProposedFileMove(fileName: "file_04", fromParentId: rootId, fromParentName: "User", toParentId: imgId, toParentName: "Img"),
-            ProposedFileMove(fileName: "file_05", fromParentId: rootId, fromParentName: "User", toParentId: desktopId, toParentName: "Desktop"),
-            ProposedFileMove(fileName: "file_06", fromParentId: rootId, fromParentName: "User", toParentId: filesId, toParentName: "Files")
-        ]
-
+        self.diagramNodes = []
+        self.diagramEdges = []
+        self.proposedMoves = []
         self.selectedMoveId = nil
-        rebuildDiagramEdges()
     }
     
-    /// Initialize with AI suggestions response from the API
-    convenience init(aiResponse: AISuggestResponse, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
-        self.init(httpClient: httpClient)
-        
+    /// Initialize with AI suggestions response from the API.
+    /// This is the primary way to create this ViewModel when coming from FolderDetailView.
+    init(aiResponse: AISuggestResponse, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+        self.httpClient = httpClient
         self.originalProposedActions = aiResponse.proposedActions
         
         // Build diagram nodes from unique folders
@@ -105,6 +79,7 @@ final class SortDecisionViewModel: ObservableObject {
         
         // Convert ProposedActions to ProposedFileMoves
         var moves: [ProposedFileMove] = []
+        var mapping: [UUID: ProposedAction] = [:]
         for action in aiResponse.proposedActions {
             let toParentId = folderIds[action.suggestedFolder] ?? rootId
             let move = ProposedFileMove(
@@ -115,10 +90,14 @@ final class SortDecisionViewModel: ObservableObject {
                 toParentName: action.suggestedFolder
             )
             moves.append(move)
-            moveToActionMap[move.id] = action
+            mapping[move.id] = action
         }
         
         self.proposedMoves = moves
+        self.moveToActionMap = mapping
+        self.diagramEdges = []
+        self.selectedMoveId = nil
+        
         rebuildDiagramEdges()
     }
 

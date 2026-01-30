@@ -74,16 +74,10 @@ final class HomeViewModel: ObservableObject {
             errorMessage = error.errorDescription
             showErrorAlert = error.isCritical
             
-            // Show stub data on error for development
-            rootNode = Self.makeStubTree()
-            
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
             showErrorAlert = true
-            
-            // Show stub data on error for development
-            rootNode = Self.makeStubTree()
         }
     }
     
@@ -98,27 +92,13 @@ final class HomeViewModel: ObservableObject {
         errorMessage = nil
         showErrorAlert = false
     }
-
-    // MARK: - Stub Data (fallback)
     
-    private static func makeStubTree() -> FolderNode {
-        FolderNode(name: "Root", children: [
-            FolderNode(name: "Project_Docs", children: [
-                FolderNode(name: "Client_Reports", children: [
-                    FolderNode(name: "Client_Report_Q1"),
-                    FolderNode(name: "Client_Report_Q2")
-                ]),
-                FolderNode(name: "Shared_Assets", children: [
-                    FolderNode(name: "Eiomnal_Assets", children: [
-                        FolderNode(name: "Source_Files")
-                    ]),
-                    FolderNode(name: "Logos"),
-                    FolderNode(name: "Templates")
-                ]),
-                FolderNode(name: "Marketing_Materials"),
-                FolderNode(name: "Internal_Docs")
-            ])
-        ])
+    // MARK: - Data Availability
+    
+    /// True when filesystem data has been successfully loaded from the API.
+    /// Folders are only clickable when this is true.
+    var isDataAvailable: Bool {
+        filesystemResponse != nil
     }
 
     // MARK: - Navigation Actions
