@@ -51,6 +51,10 @@ final class FolderDetailViewModel: ObservableObject {
         self.httpClient = httpClient
         // Use the folder itself as the graph root, or an empty placeholder
         self.folderGraphRoot = folder ?? FolderNode(name: "No folder selected", children: [])
+        // Populate files from the folder
+        self.files = folder?.files ?? []
+        // Set root directory path for API calls
+        self.rootDirectoryPath = folder?.path ?? ""
     }
     
     /// Initialize with a specific root directory path (for when coming from HomeView with API data)
@@ -75,6 +79,21 @@ final class FolderDetailViewModel: ObservableObject {
         case .date: return list.sorted { $0.date > $1.date }
         case .size: return list.sorted { $0.size < $1.size }
         }
+    }
+    
+    /// Child folders (subfolders) of the current folder, filtered by showFolders toggle.
+    var filteredChildFolders: [FolderNode] {
+        guard showFolders else { return [] }
+        let children = folder?.children ?? []
+        switch sortOption {
+        case .name: return children.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        case .date, .size: return children // Folders don't have date/size, keep original order
+        }
+    }
+    
+    /// True if the folder items list is empty (no files and no folders to display)
+    var isFolderItemsEmpty: Bool {
+        filteredAndSortedFiles.isEmpty && filteredChildFolders.isEmpty
     }
     
     func setFilter(_ option: FilterOption) {

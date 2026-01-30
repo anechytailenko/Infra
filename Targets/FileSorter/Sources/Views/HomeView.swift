@@ -35,14 +35,6 @@ struct HomeView: View {
                 .background(
                     Group {
                         NavigationLink(
-                            destination: FolderDetailView(folder: viewModel.selectedFolder),
-                            isActive: Binding(
-                                get: { viewModel.selectedFolder != nil },
-                                set: { if !$0 { viewModel.clearFolderSelection() } }
-                            )
-                        ) { EmptyView() }
-                        .hidden()
-                        NavigationLink(
                             destination: SearchResultsStubView(query: viewModel.searchResultsQuery ?? "", onDismiss: { viewModel.clearSearchResults() }),
                             isActive: Binding(
                                 get: { viewModel.searchResultsQuery != nil },
@@ -52,6 +44,13 @@ struct HomeView: View {
                         .hidden()
                     }
                 )
+                // Modern navigation pattern: destination created only when item is non-nil
+                .navigationDestination(item: Binding(
+                    get: { viewModel.selectedFolder },
+                    set: { viewModel.selectedFolder = $0 }
+                )) { folder in
+                    FolderDetailView(folder: folder)
+                }
                 
                 // Loading overlay
                 if viewModel.isLoading {
@@ -67,6 +66,13 @@ struct HomeView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "An unknown error occurred.")
+            }
+            .task {
+                // Fetch filesystem on view appear (only if not already loaded)
+                // Uses default path from APIConfiguration (Single Responsibility)
+                if !viewModel.isDataAvailable {
+                    await viewModel.fetchFilesystem(path: APIConfiguration.defaultFilesystemPath)
+                }
             }
         }
     }

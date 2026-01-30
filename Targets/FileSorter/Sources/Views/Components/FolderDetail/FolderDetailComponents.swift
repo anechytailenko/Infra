@@ -68,13 +68,22 @@ struct FileListView: View {
                 .frame(height: 1)
             ScrollView {
                 VStack(spacing: 0) {
-                    if viewModel.filteredAndSortedFiles.isEmpty {
-                        Text("No files")
+                    if viewModel.isFolderItemsEmpty {
+                        Text("No items")
                             .font(.system(size: AppStyle.bodyFontSize))
                             .foregroundStyle(AppStyle.textSecondary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, FolderDetailStyle.listRowPaddingVertical)
                     } else {
+                        // Display folders first
+                        ForEach(viewModel.filteredChildFolders) { folder in
+                            FolderRowView(folder: folder)
+                            Rectangle()
+                                .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
+                                .frame(height: 1)
+                                .padding(.leading, FolderDetailStyle.listDividerLeadingPadding)
+                        }
+                        // Then display files
                         ForEach(viewModel.filteredAndSortedFiles) { file in
                             FileRowView(file: file)
                             Rectangle()
@@ -86,7 +95,7 @@ struct FileListView: View {
                 }
             }
         }
-        .frame(height: viewModel.filteredAndSortedFiles.isEmpty ? FolderDetailStyle.fileListHeightEmpty : FolderDetailStyle.fileListHeight)
+        .frame(height: viewModel.isFolderItemsEmpty ? FolderDetailStyle.fileListHeightEmpty : FolderDetailStyle.fileListHeight)
         .background(AppStyle.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: FolderDetailStyle.listCornerRadius))
         .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
@@ -112,6 +121,35 @@ struct FileRowView: View {
                 Text(file.formattedSize).frame(width: 60, alignment: .trailing)
                 Text(file.formattedType).frame(width: 80, alignment: .leading)
                 Text(file.formattedDate).frame(width: 100, alignment: .trailing)
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(AppStyle.textSecondary)
+        }
+        .padding(.horizontal, FolderDetailStyle.listRowPaddingHorizontal)
+        .padding(.vertical, FolderDetailStyle.listRowPaddingVertical)
+        .background(AppStyle.cardBackground)
+    }
+}
+
+// MARK: - FolderRowView
+
+struct FolderRowView: View {
+    let folder: FolderNode
+
+    var body: some View {
+        HStack(alignment: .center, spacing: FolderDetailStyle.listRowHStackSpacing) {
+            Image(systemName: "folder.fill")
+                .font(.system(size: FolderDetailStyle.listRowIconSize))
+                .foregroundStyle(AppStyle.textSecondary)
+                .frame(width: 24)
+            Text(folder.name)
+                .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                .foregroundStyle(AppStyle.textPrimary)
+            Spacer()
+            HStack(spacing: 20) {
+                Text("--").frame(width: 60, alignment: .trailing)
+                Text("Folder").frame(width: 80, alignment: .leading)
+                Text("--").frame(width: 100, alignment: .trailing)
             }
             .font(.system(size: 12))
             .foregroundStyle(AppStyle.textSecondary)

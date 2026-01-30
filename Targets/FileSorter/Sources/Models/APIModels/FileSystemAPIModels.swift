@@ -30,13 +30,15 @@ struct FSNodeResponse: Codable {
 extension FSNodeResponse {
     
     /// Converts the API response to a FolderNode tree for the graph view.
-    /// Only includes directories (folders), not files.
+    /// Includes path and direct child files for each folder.
     func toFolderNode() -> FolderNode {
         let childFolders = children
             .filter { $0.isDirectory }
             .map { $0.toFolderNode() }
         
-        return FolderNode(name: name, children: childFolders)
+        let directFiles = directChildFiles()
+        
+        return FolderNode(name: name, path: path, children: childFolders, files: directFiles)
     }
     
     /// Converts a file node to a FileItem domain model.

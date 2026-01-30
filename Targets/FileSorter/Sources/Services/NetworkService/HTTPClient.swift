@@ -84,7 +84,7 @@ final class URLSessionHTTPClient: HTTPClient {
             logger.debug("Query params: \(queryParams)")
         }
         
-        return try await performRequest(request, endpoint: endpoint)
+        return try await performRequest(request)
     }
     
     func post<T: Decodable, U: Encodable>(endpoint: String, body: U) async throws -> T {
@@ -100,11 +100,11 @@ final class URLSessionHTTPClient: HTTPClient {
             request.httpBody = try encoder.encode(body)
             logger.info("POST \(url.absoluteString) [timeout: \(APIConfiguration.timeoutInterval)s, body: \(request.httpBody?.count ?? 0) bytes]")
         } catch {
-            logger.error("Failed to encode request body: \(error.localizedDescription)")
+            logger.error("Failed to encode request body for \(url.absoluteString): \(error.localizedDescription)")
             throw APIError.decodingError(error)
         }
         
-        return try await performRequest(request, endpoint: endpoint)
+        return try await performRequest(request)
     }
     
     // MARK: - Private Helpers
@@ -127,10 +127,12 @@ final class URLSessionHTTPClient: HTTPClient {
         return url
     }
     
-    private func performRequest<T: Decodable>(_ request: URLRequest, endpoint: String) async throws -> T {
+    private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         let startTime = Date()
         let data: Data
         let response: URLResponse
+        let urlString = request.url?.absoluteString ?? "unknown"
+        let method = request.httpMethod ?? "?"
         
         do {
             (data, response) = try await session.data(for: request)
@@ -139,45 +141,45 @@ final class URLSessionHTTPClient: HTTPClient {
             
             switch urlError.code {
             case .timedOut:
-                logger.error("Request TIMEOUT after \(String(format: "%.2f", duration))s - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("TIMEOUT after \(String(format: "%.2f", duration))s - \(method) \(urlString)")
             case .notConnectedToInternet:
-                logger.error("No internet connection - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("No internet connection - \(method) \(urlString)")
             case .networkConnectionLost:
-                logger.error("Network connection lost - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("Network connection lost - \(method) \(urlString)")
             case .cannotFindHost:
-                logger.error("Cannot find host - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("Cannot find host - \(method) \(urlString)")
             case .cannotConnectToHost:
-                logger.error("Cannot connect to host - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("Cannot connect to host - \(method) \(urlString)")
             default:
-                logger.error("Network error (\(urlError.code.rawValue)): \(urlError.localizedDescription) - \(request.httpMethod ?? "?") \(endpoint)")
+                logger.error("Network error (\(urlError.code.rawValue)): \(urlError.localizedDescription) - \(method) \(urlString)")
             }
             
             throw APIError.networkError(urlError)
         } catch {
             let duration = Date().timeIntervalSince(startTime)
-            logger.error("Request failed after \(String(format: "%.2f", duration))s: \(error.localizedDescription)")
+            logger.error("Request failed after \(String(format: "%.2f", duration))s - \(method) \(urlString): \(error.localizedDescription)")
             throw APIError.networkError(error)
         }
         
         let duration = Date().timeIntervalSince(startTime)
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            logger.error("Invalid response type (not HTTPURLResponse)")
+            logger.error("Invalid response type (not HTTPURLResponse) - \(method) \(urlString)")
             throw APIError.unknown
         }
         
         let statusCode = httpResponse.statusCode
         let responseSize = data.count
         
-        // Log response with status code
+        // Log response with status code and full URL
         if (200...299).contains(statusCode) {
-            logger.info("Response \(statusCode) OK - \(request.httpMethod ?? "?") \(endpoint) [\(String(format: "%.2f", duration))s, \(responseSize) bytes]")
+            logger.info("Response \(statusCode) OK - \(method) \(urlString) [\(String(format: "%.2f", duration))s, \(responseSize) bytes]")
         } else if (400...499).contains(statusCode) {
-            logger.warning("Response \(statusCode) Client Error - \(request.httpMethod ?? "?") \(endpoint) [\(String(format: "%.2f", duration))s]")
+            logger.warning("Response \(statusCode) Client Error - \(method) \(urlString) [\(String(format: "%.2f", duration))s]")
         } else if (500...599).contains(statusCode) {
-            logger.error("Response \(statusCode) Server Error - \(request.httpMethod ?? "?") \(endpoint) [\(String(format: "%.2f", duration))s]")
+            logger.error("Response \(statusCode) Server Error - \(method) \(urlString) [\(String(format: "%.2f", duration))s]")
         } else {
-            logger.warning("Response \(statusCode) - \(request.httpMethod ?? "?") \(endpoint) [\(String(format: "%.2f", duration))s]")
+            logger.warning("Response \(statusCode) - \(method) \(urlString) [\(String(format: "%.2f", duration))s]")
         }
         
         // Check for server errors
