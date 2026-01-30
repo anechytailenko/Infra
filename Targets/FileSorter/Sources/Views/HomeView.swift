@@ -6,12 +6,6 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
 
-    // State for pan/zoom gestures (UI-only)
-    @State private var offset: CGSize = .zero
-    @State private var lastDragPosition: CGSize = .zero
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -79,37 +73,13 @@ struct HomeView: View {
     private var graphSection: some View {
         ZStack {
             // Folders are only clickable when data is available from API
+            // GraphView now has built-in zoom/scroll - no external gestures needed
             GraphView(
                 root: viewModel.rootNode,
                 onFolderSelected: viewModel.isDataAvailable ? { viewModel.selectFolder($0) } : nil
             )
-                .scaleEffect(scale)
-                .offset(x: offset.width, y: offset.height)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .gesture(
-                    SimultaneousGesture(
-                        DragGesture()
-                            .onChanged { value in
-                                offset = CGSize(
-                                    width: lastDragPosition.width + value.translation.width,
-                                    height: lastDragPosition.height + value.translation.height
-                                )
-                            }
-                            .onEnded { _ in
-                                lastDragPosition = offset
-                            },
-                        MagnificationGesture()
-                            .onChanged { value in
-                                let newScale = lastScale * value
-                                scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
-                            }
-                            .onEnded { _ in
-                                lastScale = scale
-                            }
-                    )
-                )
-            
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
             // Inline error state (recoverable errors)
             if let errorMessage = viewModel.errorMessage, !viewModel.showErrorAlert {
                 inlineErrorView(message: errorMessage)

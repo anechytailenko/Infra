@@ -37,4 +37,51 @@ struct GraphViewStyle {
 
     static let zoomMin: CGFloat = 0.5
     static let zoomMax: CGFloat = 3.0
+
+    // MARK: - Column Layout (for graph grid view)
+
+    static let visibleColumns: Int = 5
+    static let nodeWidthMultiplier: CGFloat = 0.85
+    static let minNodeWidth: CGFloat = 100.0
+    static let verticalSpacing: CGFloat = 20.0
+
+    // MARK: - Footer Depth Pills
+
+    static let footerBottomPadding: CGFloat = 30
+    static let depthPillPaddingHorizontal: CGFloat = 16
+    static let depthPillPaddingVertical: CGFloat = 8
+    static let depthPillCornerRadius: CGFloat = 10
+    static let depthPillFont = Font.caption
+    static let depthPillFontWeight: Font.Weight = .semibold
+    static let depthPillTextOpacity: Double = 0.7
+
+    // MARK: - Grid Lines
+
+    static let gridLineOpacity: Double = 0.3
+    static let gridLineDash: [CGFloat] = [4, 4]
+
+    // MARK: - HUD Buttons (Accept/Decline overlay)
+
+    static let hudButtonPadding: CGFloat = 10
+    static let hudButtonCornerRadius: CGFloat = 8
+    static let hudButtonSpacing: CGFloat = 12
+    static let hudPadding: CGFloat = 24
+
+    // MARK: - Drag Layer
+
+    static let dragLineDash: [CGFloat] = [5, 5]
+    static let dragConnectionColor = Color.green
+    static let dragShadowRadius: CGFloat = 8
+
+    // MARK: - File Node
+
+    static let fileNodeColor = Color.green
+    static let fileNodeBorderWidth: CGFloat = 2
+    static let fileNodeShadowOpacity: Double = 0.2
+    static let fileNodeShadowRadius: CGFloat = 4
+
+    // MARK: - New Folder Highlight
+
+    static let newFolderColor = Color.green
+    static let newFolderBorderOpacity: Double = 0.5
 }

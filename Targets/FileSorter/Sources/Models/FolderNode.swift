@@ -8,12 +8,15 @@ struct FolderNode: Identifiable, Hashable {
     var children: [FolderNode] = []
     /// Files directly contained in this folder (not recursive)
     var files: [FileItem] = []
-    
-    init(name: String, path: String = "", children: [FolderNode] = [], files: [FileItem] = []) {
+    /// Whether this folder is newly created (e.g., by AI suggestion) - shown with green highlight
+    var isNew: Bool = false
+
+    init(name: String, path: String = "", children: [FolderNode] = [], files: [FileItem] = [], isNew: Bool = false) {
         self.name = name
         self.path = path
         self.children = children
         self.files = files
+        self.isNew = isNew
     }
     
     // Hashable conformance (required for navigationDestination)
