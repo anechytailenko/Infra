@@ -6,8 +6,6 @@ import SwiftUI
 struct FileListView: View {
     @ObservedObject var viewModel: FolderDetailViewModel
     @State private var showFilterPopover = false
-    @State private var showSortPopover = false
-    @State private var showOptionsPopover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,49 +55,6 @@ struct FileListView: View {
                         .padding(12)
                         .frame(minWidth: 160)
                     }
-                    Button {
-                        showSortPopover = true
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down.circle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
-                            .frame(width: FolderDetailStyle.filterSortButtonSize, height: FolderDetailStyle.filterSortButtonSize)
-                            .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showSortPopover, arrowEdge: .bottom) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(SortOption.allCases, id: \.self) { option in
-                                Button(option.rawValue) {
-                                    viewModel.setSort(option)
-                                    showSortPopover = false
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(12)
-                        .frame(minWidth: 120)
-                    }
-                    Button {
-                        showOptionsPopover = true
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
-                            .frame(width: FolderDetailStyle.filterSortButtonSize, height: FolderDetailStyle.filterSortButtonSize)
-                            .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $showOptionsPopover, arrowEdge: .bottom) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Button("Refresh") { showOptionsPopover = false }
-                                .buttonStyle(.plain)
-                            Button("Export…") { showOptionsPopover = false }
-                                .buttonStyle(.plain)
-                        }
-                        .padding(12)
-                        .frame(minWidth: 120)
-                    }
                 }
             }
             .padding(.horizontal, FolderDetailStyle.listRowPaddingHorizontal)
@@ -110,17 +65,25 @@ struct FileListView: View {
                 .frame(height: 1)
             ScrollView {
                 VStack(spacing: 0) {
-                    ForEach(viewModel.filteredAndSortedFiles) { file in
-                        FileRowView(file: file)
-                        Rectangle()
-                            .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
-                            .frame(height: 1)
-                            .padding(.leading, FolderDetailStyle.listDividerLeadingPadding)
+                    if viewModel.filteredAndSortedFiles.isEmpty {
+                        Text("No files")
+                            .font(.system(size: AppStyle.bodyFontSize))
+                            .foregroundStyle(AppStyle.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, FolderDetailStyle.listRowPaddingVertical)
+                    } else {
+                        ForEach(viewModel.filteredAndSortedFiles) { file in
+                            FileRowView(file: file)
+                            Rectangle()
+                                .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
+                                .frame(height: 1)
+                                .padding(.leading, FolderDetailStyle.listDividerLeadingPadding)
+                        }
                     }
                 }
             }
         }
-        .frame(height: FolderDetailStyle.fileListHeight)
+        .frame(height: viewModel.filteredAndSortedFiles.isEmpty ? FolderDetailStyle.fileListHeightEmpty : FolderDetailStyle.fileListHeight)
         .background(AppStyle.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: FolderDetailStyle.listCornerRadius))
         .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
@@ -160,6 +123,7 @@ struct FileRowView: View {
 
 struct HistoryListView: View {
     let history: [HistoryItem]
+    var onRevertLast: (() -> Void)? = nil
     @State private var showMenuPopover = false
 
     var body: some View {
@@ -171,6 +135,15 @@ struct HistoryListView: View {
                     .font(AppStyle.headlineFont)
                     .foregroundStyle(AppStyle.textPrimary)
                 Spacer()
+                if let onRevertLast = onRevertLast {
+                    Button("Revert last", action: onRevertLast)
+                        .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                        .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                        .buttonStyle(.plain)
+                }
                 Button {
                     showMenuPopover = true
                 } label: {

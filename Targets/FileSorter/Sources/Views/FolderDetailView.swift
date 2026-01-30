@@ -46,7 +46,7 @@ struct FolderDetailView: View {
                     sortBar
                     graphCard
                     FileListView(viewModel: viewModel)
-                    HistoryListView(history: viewModel.history)
+                    HistoryListView(history: viewModel.history, onRevertLast: { viewModel.revertLast() })
                 }
                 .padding(.horizontal, FolderDetailStyle.contentPaddingHorizontal)
                 .padding(.top, FolderDetailStyle.contentPaddingTop)

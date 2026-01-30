@@ -6,27 +6,27 @@ import Combine
 // Filter and sort are in-memory stubs over the stub files array.
 
 final class FolderDetailViewModel: ObservableObject {
-
+    
     /// Folder selected from HomeView; later used to load file contents.
     let folder: FolderNode?
-
+    
     @Published var files: [FileItem] = []
     @Published var history: [HistoryItem] = []
     @Published var filterOption: FilterOption = .all
     @Published var sortOption: SortOption = .name
     @Published var showFiles: Bool = true
     @Published var showFolders: Bool = true
-
+    
     /// Stub tree for GraphView (same structure as legacy User/Desktop/Downloads/Files).
     let folderGraphRoot: FolderNode
-
+    
     init(folder: FolderNode? = nil) {
         self.folder = folder
         self.folderGraphRoot = Self.makeStubGraphTree()
         self.files = Self.makeStubFiles()
         self.history = Self.makeStubHistory()
     }
-
+    
     private static func makeStubGraphTree() -> FolderNode {
         FolderNode(name: "User", children: [
             FolderNode(name: "Desktop"),
@@ -34,7 +34,7 @@ final class FolderDetailViewModel: ObservableObject {
             FolderNode(name: "Files")
         ])
     }
-
+    
     private static func makeStubFiles() -> [FileItem] {
         [
             FileItem(path: "/User/Desktop", name: "IMG_8032.heic", date: Date(), size: 1400000),
@@ -42,7 +42,7 @@ final class FolderDetailViewModel: ObservableObject {
             FileItem(path: "/User/Docs", name: "Gemini_Generated.png", date: Date().addingTimeInterval(-1200), size: 1900000)
         ]
     }
-
+    
     private static func makeStubHistory() -> [HistoryItem] {
         [
             HistoryItem(status: "sorted", date: "Today at 19:05", isSuccess: true),
@@ -50,7 +50,7 @@ final class FolderDetailViewModel: ObservableObject {
             HistoryItem(status: "sorted", date: "Today at 18:37", isSuccess: true)
         ]
     }
-
+    
     /// Filtered and sorted file list (stub: in-memory filter by showFiles/kind, then sort).
     var filteredAndSortedFiles: [FileItem] {
         var list: [FileItem] = []
@@ -68,20 +68,26 @@ final class FolderDetailViewModel: ObservableObject {
         case .size: return list.sorted { $0.size < $1.size }
         }
     }
-
+    
     func setFilter(_ option: FilterOption) {
         filterOption = option
     }
-
+    
     func setSort(_ option: SortOption) {
         sortOption = option
     }
-
+    
     func toggleShowFiles() {
         showFiles.toggle()
     }
-
+    
     func toggleShowFolders() {
         showFolders.toggle()
+    }
+    
+    /// Revert the last history entry (stub: remove last item if any).
+    func revertLast() {
+        guard !history.isEmpty else { return }
+        history = Array(history.dropLast())
     }
 }
