@@ -58,10 +58,10 @@ struct SortDecisionView: View {
     
     private var diagramSection: some View {
         GeometryReader { geo in
-            let layoutSize = CGSize(
-                width: max(geo.size.width, SortDecisionStyle.diagramMinLayoutWidth),
-                height: max(geo.size.height, SortDecisionStyle.diagramMinLayoutHeight)
-            )
+            let padding = SortDecisionStyle.diagramInnerPadding
+            let innerWidth = max(0, geo.size.width - 2 * padding)
+            let innerHeight = max(0, geo.size.height - 2 * padding)
+            let layoutSize = CGSize(width: innerWidth, height: innerHeight)
             let graphNodes = viewModel.diagramNodes.map { node in
                 GraphNodeData(
                     id: node.id,
@@ -82,6 +82,7 @@ struct SortDecisionView: View {
                 )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
+                .clipped()
                 .gesture(
                     SimultaneousGesture(
                         DragGesture()
@@ -108,6 +109,10 @@ struct SortDecisionView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(SortDecisionStyle.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: SortDecisionStyle.cardCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: SortDecisionStyle.cardCornerRadius)
+                    .stroke(Color.black.opacity(SortDecisionStyle.listDividerOverlayOpacity), lineWidth: 1)
+            )
             .shadow(color: SortDecisionStyle.cardShadowColor, radius: SortDecisionStyle.cardShadowRadius, x: SortDecisionStyle.cardShadowX, y: SortDecisionStyle.cardShadowY)
         }
     }

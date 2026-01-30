@@ -131,10 +131,8 @@ struct GraphView: View {
     // MARK: - Diagram Mode
 
     private func diagramBody(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) -> some View {
-        let layoutSize = CGSize(
-            width: max(size.width, SortDecisionStyle.diagramMinLayoutWidth),
-            height: max(size.height, SortDecisionStyle.diagramMinLayoutHeight)
-        )
+        let layoutSize = size
+        let padding = SortDecisionStyle.diagramInnerPadding
         return ZStack(alignment: .topLeading) {
             diagramEdgesLayer(edges: edges, selectedMove: selectedMove, layout: layout)
             diagramNodesLayer(nodes: nodes, layout: layout)
@@ -142,9 +140,8 @@ struct GraphView: View {
                 diagramFileNodesLayer(move: move, layout: layout)
             }
         }
-        .frame(minWidth: layoutSize.width, minHeight: layoutSize.height)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(SortDecisionStyle.diagramInnerPadding)
+        .frame(width: layoutSize.width, height: layoutSize.height)
+        .padding(padding)
     }
 
     private func diagramEdgesLayer(edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout) -> some View {

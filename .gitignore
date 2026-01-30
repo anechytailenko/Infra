@@ -10,3 +10,4 @@ Derived/
 
 # Swift Package Manager (if used later)
 .build/
+/.cursor
