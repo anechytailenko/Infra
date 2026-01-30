@@ -69,7 +69,6 @@ struct GraphView: View {
         self.onManualMove = onManualMove
     }
 
-    // Legacy diagram init
     init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
         mode = .diagram(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
     }
@@ -98,20 +97,24 @@ struct GraphView: View {
                                 .padding(.leading, (config.columnStride - config.nodeWidth) / 2)
                                 
                                 // 3. Drag Interaction Layer
-                                .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
+                                // Use overlayPreferenceValue to layer ON TOP of the rendered graph
+                                .overlayPreferenceValue(NodeBoundsKey.self) { preferences in
                                     GeometryReader { innerGeo in
+                                        // The 'innerGeo' here includes the padding applied to FolderGraphLayout.
+                                        // Therefore, the positions we resolve are correct relative to this overlay layer.
                                         let positions = resolvePositions(from: preferences, in: innerGeo)
+                                        
                                         if let file = selectedFile {
                                             FileDragLayer(
                                                 file: file,
-                                                rootNode: root, // Pass root to find names later
+                                                rootNode: root,
                                                 config: config,
                                                 nodePositions: positions,
                                                 isDragging: $isDraggingFile,
                                                 onDrop: { newFolderID in handleDrop(fileId: file.id, folderId: newFolderID) }
                                             )
-                                            .padding(.vertical, 20)
-                                            .padding(.leading, (config.columnStride - config.nodeWidth) / 2)
+                                            // FIX: REMOVED PADDING HERE to prevent double-shifting coordinates
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                         }
                                     }
                                 }
@@ -188,8 +191,9 @@ struct FileDragLayer: View {
         ZStack(alignment: .topLeading) {
             
             // 1. Invisible Touch Target
+            // We use the static position to create a hit box.
             if let staticRect = nodePositions[file.id], !isDragging {
-                Color.white.opacity(0.001)
+                Color.white.opacity(0.001) // Transparent but interactable
                     .frame(width: staticRect.width, height: staticRect.height)
                     .position(x: staticRect.midX, y: staticRect.midY)
                     .gesture(
@@ -210,12 +214,10 @@ struct FileDragLayer: View {
             if isDragging {
                 let currentPoint = CGPoint(x: currentDragLocation.x + dragOffset.width, y: currentDragLocation.y + dragOffset.height)
                 
-                // A. Draw Connection to Nearest Folder (if found)
+                // A. Connection Line
                 if let targetID = potentialTargetID, let targetRect = nodePositions[targetID] {
                     Path { path in
-                        // Start: Right Center of Target Folder
                         let startPoint = CGPoint(x: targetRect.maxX, y: targetRect.midY)
-                        // End: Left Center of Dragging File
                         let endPoint = CGPoint(x: currentPoint.x - (config.nodeWidth / 2), y: currentPoint.y)
                         
                         path.move(to: startPoint)
@@ -227,35 +229,32 @@ struct FileDragLayer: View {
                     .stroke(Color.green, style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
                 }
                 
-                // B. The File Node Avatar
+                // B. The Avatar
                 FileNodeView(name: file.fileName, width: config.nodeWidth)
                     .position(x: currentPoint.x, y: currentPoint.y)
                     .shadow(radius: 8)
+                    // Allows the user to "catch" the avatar if the gesture somehow resets but drag continues
+                    .gesture(
+                        DragGesture(coordinateSpace: .local)
+                            .onChanged { value in
+                                dragOffset = value.translation
+                                potentialTargetID = findNearestFolder(at: currentDragLocation, offset: dragOffset)
+                            }
+                            .onEnded { _ in endDrag() }
+                    )
             }
-        }
-        .if(isDragging) { view in
-            view.gesture(
-                DragGesture(coordinateSpace: .local)
-                    .onChanged { value in
-                        dragOffset = value.translation
-                        potentialTargetID = findNearestFolder(at: currentDragLocation, offset: dragOffset)
-                    }
-                    .onEnded { _ in endDrag() }
-            )
         }
     }
     
-    // Logic: Find nearest folder on the *previous* vertical line
+    // Logic: Find nearest folder on the *previous* vertical column
     func findNearestFolder(at initialPoint: CGPoint, offset: CGSize) -> UUID? {
         let currentX = initialPoint.x + offset.width
         let currentY = initialPoint.y + offset.height
         
-        // 1. Determine current section index (column)
-        // Adding half width to center the detection logic
+        // 1. Determine current column
         let currentColumnIndex = Int(currentX / config.columnStride)
         
-        // 2. Identify Target Column (Previous one)
-        // If we are at column 1, we look at column 0. If at 0, we stick to 0.
+        // 2. Target Column is the previous one (max 0)
         let targetColumnIndex = max(0, currentColumnIndex - 1)
         
         var bestDist = CGFloat.greatestFiniteMagnitude
@@ -263,13 +262,12 @@ struct FileDragLayer: View {
         
         for (id, rect) in nodePositions {
             if id == file.id { continue } // Skip self
+            if !isIDFolder(id) { continue } // Skip other files
             
-            // 3. Filter: Is this node in the target column?
-            // We verify if the node's center X falls within the target column's bounds
+            // Check column
             let nodeColumnIndex = Int(rect.midX / config.columnStride)
             
             if nodeColumnIndex == targetColumnIndex {
-                // 4. Measure distance (Euclidean)
                 let dist = hypot(rect.midX - currentX, rect.midY - currentY)
                 if dist < bestDist {
                     bestDist = dist
@@ -278,15 +276,25 @@ struct FileDragLayer: View {
             }
         }
         
-        // Fallback: If no node found in previous column (e.g., dragged too far left),
-        // snap to Root if available and we are in the first column
+        // Fallback: If dragged too far left (col 0), snap to Root
         if bestID == nil && targetColumnIndex == 0 {
-             if let rootRect = nodePositions[rootNode.id] {
-                 return rootNode.id
-             }
+            if let rootRect = nodePositions[rootNode.id] {
+                return rootNode.id
+            }
         }
         
         return bestID
+    }
+    
+    func isIDFolder(_ uuid: UUID) -> Bool {
+        func check(_ node: FolderNode) -> Bool {
+            if node.id == uuid { return true }
+            for child in node.children {
+                if check(child) { return true }
+            }
+            return false
+        }
+        return check(rootNode)
     }
     
     func endDrag() {
@@ -311,12 +319,14 @@ struct FolderGraphLayout: View {
             .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
                 GeometryReader { geometry in
                     ZStack {
+                        // 1. Folder Connections
                         ForEach(Array(preferences.keys), id: \.self) { id in
                             if let node = findNode(id: id, in: root), !node.children.isEmpty {
                                 drawCurve(from: id, to: node.children.map { $0.id }, preferences: preferences, geometry: geometry, color: AppStyle.edgeNormalColor, dash: [])
                             }
                         }
-                        // Static connection line (hidden during drag)
+                        
+                        // 2. Selected File Connection (Static)
                         if !isDragging, let file = selectedFile, let _ = preferences[file.id] {
                             Group {
                                 let parentID = determineParentID(for: file, root: root)
