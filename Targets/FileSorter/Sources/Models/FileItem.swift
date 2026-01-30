@@ -50,3 +50,37 @@ struct FileItem: Identifiable, Hashable {
         return .document
     }
 }
+
+// MARK: - Presentation (FolderDetailView, file list)
+
+extension FileItem {
+    var iconName: String {
+        switch kind {
+        case .image: return "photo"
+        case .archive: return "archivebox"
+        case .document: return "doc.text"
+        }
+    }
+
+    var formattedSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useMB, .useKB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
+    }
+
+    var formattedType: String {
+        switch kind {
+        case .image: return "\(typeExtension.uppercased()) Image"
+        case .archive: return "Archive"
+        default: return "\(typeExtension.uppercased()) File"
+        }
+    }
+
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return "Today at " + formatter.string(from: date)
+    }
+}
