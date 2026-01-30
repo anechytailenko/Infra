@@ -1,7 +1,8 @@
 import SwiftUI
 import Combine
 
-// MARK: - View Model
+// MARK: - View Model (Stub)
+// Stub: replace with real folder detail loading (e.g. constructor taking FolderNode for "show this folder").
 class FolderDetailViewModel: ObservableObject {
     @Published var rootNode: SimpleNode
     @Published var files: [FileItem] = []

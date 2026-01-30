@@ -10,6 +10,9 @@ struct GraphViewStyle {
     static let mainPadding: CGFloat = 24
     static let headerTopPadding: CGFloat = 20
     static let headerBottomPadding: CGFloat = 10
+    /// Spacing above the "Select any folder…" title (larger than bottom).
+    static let titleTopPadding: CGFloat = 18
+    static let titleBottomPadding: CGFloat = 0
     static let graphAreaPadding: CGFloat = 50
 
     // MARK: - Search Bar
@@ -18,11 +21,12 @@ struct GraphViewStyle {
     static let searchBarPadding: CGFloat = 10
     static let searchBarCornerRadius: CGFloat = 12
 
-    // MARK: - Sort Button
+    // MARK: - Sort Button (enter/submit next to search field)
 
-    static let sortButtonPaddingHorizontal: CGFloat = 20
-    static let sortButtonPaddingVertical: CGFloat = 8
-    static let sortButtonCornerRadius: CGFloat = 12
+    static let sortButtonPaddingHorizontal: CGFloat = 12
+    static let sortButtonPaddingVertical: CGFloat = 6
+    static let sortButtonCornerRadius: CGFloat = 10
+    static let sortButtonIconFontSize: CGFloat = 14
 
     // MARK: - Folder Graph
 

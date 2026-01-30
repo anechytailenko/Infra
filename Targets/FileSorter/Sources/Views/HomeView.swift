@@ -6,6 +6,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = FolderStructureViewModel()
     @State private var searchText = ""
+    @State private var selectedFolder: FolderNode?
 
     // State for pan/zoom gestures
     @State private var offset: CGSize = .zero
@@ -21,10 +22,28 @@ struct HomeView: View {
 
                 VStack(spacing: 0) {
                     titleBarPane
-                    SearchView(searchText: $searchText, onSort: {})
+                    SearchView(searchText: $searchText, exampleQuery: "file invoices", onSort: { viewModel.submitSearch(query: searchText) })
+                    Text("Select any folder to arrange files✨")
+                        .font(AppStyle.headlineFont)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(AppStyle.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, GraphViewStyle.mainPadding)
+                        .padding(.top, GraphViewStyle.titleTopPadding)
+                        .padding(.bottom, GraphViewStyle.titleBottomPadding)
                     graphSection
                         .padding(GraphViewStyle.mainPadding)
                 }
+                .background(
+                    NavigationLink(
+                        destination: FolderDetailView(),
+                        isActive: Binding(
+                            get: { selectedFolder != nil },
+                            set: { if !$0 { selectedFolder = nil } }
+                        )
+                    ) { EmptyView() }
+                    .hidden()
+                )
             }
         }
     }
@@ -32,7 +51,10 @@ struct HomeView: View {
     // MARK: - Graph Section
 
     private var graphSection: some View {
-        GraphView(root: viewModel.rootNode)
+        GraphView(root: viewModel.rootNode, onFolderSelected: { node in
+            selectedFolder = node
+            viewModel.didSelectFolder(node)
+        })
             .scaleEffect(scale)
             .offset(x: offset.width, y: offset.height)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

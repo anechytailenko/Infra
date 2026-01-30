@@ -51,13 +51,34 @@ struct GraphNodeView: View {
     }
 }
 
-// MARK: - View Model (Stub)
+// MARK: - View Model (Comprehensive Stub)
+// HomeView's view model. Stub implementation: replace with real folder tree loading, search, and selection.
 
 class FolderStructureViewModel: ObservableObject {
+
+    // MARK: - Published state
+
+    /// Root of the folder tree shown in the graph. Replace with real loading (e.g. from file system or API).
     @Published var rootNode: FolderNode
 
+    /// Last query submitted via search bar. Used by submitSearch(); can drive filtering or navigation when implemented.
+    @Published var lastSearchQuery: String = ""
+
+    /// True while a search or load is in progress. UI can show a loading indicator when implemented.
+    @Published var isSearching: Bool = false
+
+    /// Optional: root URL to load the tree from (e.g. user's home or a chosen directory). Not used in stub.
+    var rootURL: URL? { nil }
+
+    // MARK: - Initialization
+
     init() {
-        self.rootNode = FolderNode(name: "Root", children: [
+        self.rootNode = Self.makeStubTree()
+    }
+
+    /// Stub: build a static folder tree for UI development. Replace with loadTree(from:) or similar.
+    private static func makeStubTree() -> FolderNode {
+        FolderNode(name: "Root", children: [
             FolderNode(name: "Project_Docs", children: [
                 FolderNode(name: "Client_Reports", children: [
                     FolderNode(name: "Client_Report_Q1"),
@@ -75,19 +96,48 @@ class FolderStructureViewModel: ObservableObject {
             ])
         ])
     }
+
+    // MARK: - Loading (stubs)
+
+    /// Load the folder tree from the given URL (or default root). Replace with real file system traversal.
+    func loadRootFolder(from url: URL? = nil) {
+        // Stub: no-op. When implemented: enumerate directory, build FolderNode tree, set rootNode.
+    }
+
+    /// Reload the current tree (e.g. after external changes). Stub: no-op.
+    func reload() {
+        // Stub: when implemented, re-read from rootURL and update rootNode.
+    }
+
+    // MARK: - Search (stubs)
+
+    /// Called when the user submits the search bar (Enter or button). Replace with real search/filter logic.
+    func submitSearch(query: String? = nil) {
+        lastSearchQuery = query ?? ""
+        isSearching = true
+        // Stub: when implemented, run search (e.g. filter tree, call API), then set isSearching = false.
+        isSearching = false
+    }
+
+    // MARK: - Selection (stubs)
+
+    /// Called when the user selects a folder in the graph. Navigation is handled by HomeView; use this for side effects (e.g. analytics, preload detail).
+    func didSelectFolder(_ node: FolderNode?) {
+        // Stub: when implemented, e.g. track selection, preload FolderDetailViewModel for node.
+    }
 }
 
 // MARK: - Graph View (folder tree or diagram mode)
 
 struct GraphView: View {
     enum Mode {
-        case folder(FolderNode)
+        case folder(FolderNode, onFolderSelected: ((FolderNode) -> Void)?)
         case diagram(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize)
     }
     private let mode: Mode
 
-    init(root: FolderNode) {
-        mode = .folder(root)
+    init(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)? = nil) {
+        mode = .folder(root, onFolderSelected: onFolderSelected)
     }
 
     init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
@@ -96,8 +146,8 @@ struct GraphView: View {
 
     var body: some View {
         switch mode {
-        case .folder(let root):
-            folderBody(root: root)
+        case .folder(let root, let onFolderSelected):
+            folderBody(root: root, onFolderSelected: onFolderSelected)
         case .diagram(let nodes, let edges, let selectedMove, let layout, let size):
             diagramBody(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
         }
@@ -105,9 +155,9 @@ struct GraphView: View {
 
     // MARK: - Folder Mode
 
-    private func folderBody(root: FolderNode) -> some View {
+    private func folderBody(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)?) -> some View {
         ScrollView([.horizontal, .vertical], showsIndicators: false) {
-            FolderGraphLayout(root: root)
+            FolderGraphLayout(root: root, onFolderSelected: onFolderSelected)
                 .padding(GraphViewStyle.graphAreaPadding)
         }
     }
@@ -185,9 +235,10 @@ struct GraphView: View {
 
 struct FolderGraphLayout: View {
     let root: FolderNode
+    var onFolderSelected: ((FolderNode) -> Void)? = nil
 
     var body: some View {
-        RecursiveNodeView(node: root, depth: 0)
+        RecursiveNodeView(node: root, depth: 0, onFolderSelected: onFolderSelected)
             .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
                 GeometryReader { geometry in
                     self.drawConnections(preferences: preferences, in: geometry)
@@ -235,27 +286,35 @@ struct FolderGraphLayout: View {
 struct RecursiveNodeView: View {
     let node: FolderNode
     let depth: Int
+    var onFolderSelected: ((FolderNode) -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: GraphViewStyle.folderGraphHStackSpacing) {
-            if node.name == "Root" {
-                NavigationLink(destination: FolderDetailView()) {
-                    FolderItemView(name: node.name)
-                        .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
-                }
-                .buttonStyle(PlainButtonStyle())
-            } else {
-                FolderItemView(name: node.name)
-                    .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
-            }
+            nodeContent
 
             if !node.children.isEmpty {
                 VStack(alignment: .leading, spacing: GraphViewStyle.folderGraphVStackSpacing) {
                     ForEach(node.children) { child in
-                        RecursiveNodeView(node: child, depth: depth + 1)
+                        RecursiveNodeView(node: child, depth: depth + 1, onFolderSelected: onFolderSelected)
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var nodeContent: some View {
+        let itemView = FolderItemView(name: node.name)
+            .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
+
+        if let onFolderSelected = onFolderSelected {
+            Button { onFolderSelected(node) } label: { itemView }
+                .buttonStyle(PlainButtonStyle())
+        } else if node.name == "Root" {
+            NavigationLink(destination: FolderDetailView()) { itemView }
+                .buttonStyle(PlainButtonStyle())
+        } else {
+            itemView
         }
     }
 }

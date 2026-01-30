@@ -19,7 +19,9 @@ struct AppStyle {
 
     static let textPrimary = Color.black
     static let textSecondary = Color.gray
-    static let headlineFont = Font.system(.headline, design: .default)
+    /// Light grey for search bar example query so the user understands it is placeholder text.
+    static let searchExampleColor = Color.gray.opacity(0.6)
+    static let headlineFont = Font.system(.title, design: .default)
     static let bodyFontSize: CGFloat = 14
     static let bodyFontWeight: Font.Weight = .medium
     static let captionFont = Font.caption
