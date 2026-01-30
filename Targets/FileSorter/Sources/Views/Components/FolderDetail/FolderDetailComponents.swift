@@ -127,9 +127,7 @@ struct FileRowView: View {
 struct HistoryListView: View {
     let history: [HistoryItem]
     var onRevertLast: (() -> Void)? = nil
-    @State private var showMenuPopover = false
     @State private var revertButtonHover = false
-    @State private var menuButtonHover = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -141,37 +139,21 @@ struct HistoryListView: View {
                     .foregroundStyle(AppStyle.textPrimary)
                 Spacer()
                 if let onRevertLast = onRevertLast {
-                    Button("Revert last", action: onRevertLast)
-                        .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
-                        .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
-                        .opacity(revertButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
-                        .buttonStyle(.plain)
-                        .onHover { revertButtonHover = $0 }
-                }
-                Button {
-                    showMenuPopover = true
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
-                        .frame(width: FolderDetailStyle.filterSortButtonSize, height: FolderDetailStyle.filterSortButtonSize)
-                        .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
-                        .opacity(menuButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
-                }
-                .buttonStyle(.plain)
-                .onHover { menuButtonHover = $0 }
-                .popover(isPresented: $showMenuPopover, arrowEdge: .bottom) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Button("Sort by date") { showMenuPopover = false }
-                            .buttonStyle(.plain)
-                        Button("Clear history") { showMenuPopover = false }
-                            .buttonStyle(.plain)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            onRevertLast()
+                        }
+                    } label: {
+                        Text("Revert last")
+                            .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                            .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(FolderDetailStyle.menuButtonBackground))
+                            .opacity(revertButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
                     }
-                    .padding(12)
-                    .frame(minWidth: 120)
+                    .buttonStyle(.plain)
+                    .onHover { revertButtonHover = $0 }
                 }
             }
             .padding(.horizontal, FolderDetailStyle.listRowPaddingHorizontal)
@@ -188,10 +170,10 @@ struct HistoryListView: View {
                             .background(Circle().fill(FolderDetailStyle.historySuccessColor.opacity(FolderDetailStyle.historySuccessFillOpacity)))
                             .frame(width: FolderDetailStyle.historyIconSize, height: FolderDetailStyle.historyIconSize)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(FolderDetailStyle.historySuccessColor)
                     }
-                    .frame(width: 30)
+                    .frame(width: 24)
                     Text(item.status)
                         .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
                         .foregroundStyle(AppStyle.textPrimary)
@@ -203,6 +185,7 @@ struct HistoryListView: View {
                 .padding(.horizontal, FolderDetailStyle.listRowPaddingHorizontal)
                 .padding(.vertical, FolderDetailStyle.listRowPaddingVertical)
                 .background(AppStyle.cardBackground)
+                .transition(.opacity.combined(with: .move(edge: .top)))
                 if item.id != history.last?.id {
                     Rectangle()
                         .fill(AppStyle.textPrimary.opacity(FolderDetailStyle.listDividerOpacity))
@@ -211,6 +194,7 @@ struct HistoryListView: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: history.count)
         .background(AppStyle.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: FolderDetailStyle.listCornerRadius))
         .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)

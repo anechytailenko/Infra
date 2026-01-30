@@ -9,6 +9,7 @@ struct FolderDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var backButtonHover = false
     @State private var sortButtonHover = false
+    @State private var cancelButtonHover = false
     @State private var offset: CGSize = .zero
     @State private var lastDragPosition: CGSize = .zero
     @State private var scale: CGFloat = 1.0
@@ -54,7 +55,22 @@ struct FolderDetailView: View {
                 .padding(.top, FolderDetailStyle.contentPaddingTop)
                 .padding(.bottom, FolderDetailStyle.contentPaddingBottom)
             }
+            
+            // Loading overlay when AI sort is in progress
+            if viewModel.isSortingInProgress {
+                sortLoadingOverlay
+            }
         }
+        .background(
+            NavigationLink(
+                destination: SortDecisionView(),
+                isActive: Binding(
+                    get: { viewModel.shouldNavigateToSortDecision },
+                    set: { viewModel.shouldNavigateToSortDecision = $0 }
+                )
+            ) { EmptyView() }
+            .hidden()
+        )
         .navigationTitle(folder.map { $0.name } ?? "Folder Details")
         #if os(iOS)
         .toolbar {
@@ -73,10 +89,41 @@ struct FolderDetailView: View {
         #endif
     }
 
+    private var sortLoadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppStyle.textPrimary))
+                
+                Text("Preparing sort...")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(AppStyle.cardBackground)
+                
+                Button { viewModel.cancelAISort() } label: {
+                    Text("Cancel")
+                        .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                        .foregroundStyle(FolderDetailStyle.menuButtonIconColor)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: FolderDetailStyle.menuButtonCornerRadius).fill(AppStyle.cardBackground))
+                        .opacity(cancelButtonHover ? 1 : FolderDetailStyle.buttonHoverOpacityNormal)
+                }
+                .buttonStyle(.plain)
+                .onHover { cancelButtonHover = $0 }
+            }
+            .padding(30)
+            .background(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius).fill(Color.black.opacity(0.6)))
+        }
+    }
+    
     private var sortBar: some View {
         HStack {
             Spacer()
-            Button { } label: {
+            Button { viewModel.startAISort() } label: {
                 Text("AI Sort")
                     .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
                     .foregroundStyle(FolderDetailStyle.menuButtonIconColor)

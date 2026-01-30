@@ -37,7 +37,8 @@ struct FolderDetailStyle {
     static let historySuccessColor = Color.green
     static let historySuccessBorderOpacity: Double = 0.3
     static let historySuccessFillOpacity: Double = 0.1
-    static let historyIconSize: CGFloat = 24
+    /// Match file list row icon size for consistent row height.
+    static let historyIconSize: CGFloat = 18
 
     // MARK: - Filter / Sort bar
 

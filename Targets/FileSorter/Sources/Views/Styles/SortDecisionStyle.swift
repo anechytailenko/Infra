@@ -28,9 +28,10 @@ struct SortDecisionStyle {
 
     static let listHeaderFont = AppStyle.headlineFont
     static let listHeaderIconFont = Font.title3
-    static let rowFileNameFont = Font.system(size: 14, weight: .medium)
-    static let rowMovedToFont = Font.system(size: 14)
-    static let rowIconFont = Font.title3
+    /// Match FolderDetailView file list row sizing.
+    static let rowFileNameFont = Font.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight)
+    static let rowMovedToFont = Font.system(size: 12)
+    static let rowIconFont = Font.system(size: FolderDetailStyle.listRowIconSize)
     static let buttonFont = Font.system(size: 14, weight: .semibold)
     static let nodeIconFont = AppStyle.nodeIconFont
     static let nodeTextFont = AppStyle.nodeTextFont
@@ -96,7 +97,8 @@ struct SortDecisionStyle {
     static let listHeaderHStackSpacing: CGFloat = 8
     static let listRowHStackSpacing: CGFloat = 12
     static let listRowPaddingHorizontal: CGFloat = 16
-    static let listRowPaddingVertical: CGFloat = 12
+    /// Match FolderDetailView folder items list row height.
+    static let listRowPaddingVertical: CGFloat = 5
     static let listDividerOverlayOpacity: Double = 0.1
     static let listSelectedRowTintOpacity: Double = 0.1
 
