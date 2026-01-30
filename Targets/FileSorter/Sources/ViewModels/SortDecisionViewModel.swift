@@ -194,6 +194,41 @@ final class SortDecisionViewModel: ObservableObject {
         rebuildDiagramEdges()
     }
     
+    /// Updates a file's destination folder (used for drag-and-drop).
+    /// - Parameters:
+    ///   - fileId: The ID of the ProposedFileMove to update
+    ///   - newFolderId: The ID of the target folder node
+    ///   - newFolderName: The name of the target folder
+    func updateFileDestination(fileId: UUID, newFolderId: UUID, newFolderName: String) {
+        proposedMoves = proposedMoves.map { move in
+            guard move.id == fileId else { return move }
+            // Create updated move with new destination
+            return ProposedFileMove(
+                id: move.id,
+                fileName: move.fileName,
+                fromParentId: move.fromParentId,
+                fromParentName: move.fromParentName,
+                toParentId: newFolderId,
+                toParentName: newFolderName,
+                isDeclined: false  // Un-decline if it was declined
+            )
+        }
+        // Select the moved file to highlight it
+        selectedMoveId = fileId
+        rebuildDiagramEdges()
+    }
+    
+    /// Converts current effective moves to FileRowDisplay array for FileMoveListView.
+    var fileRowDisplays: [FileRowDisplay] {
+        effectiveMoves.map { $0.toFileRowDisplay() }
+    }
+    
+    /// Binding helper: converts FileRowDisplay selection to ProposedFileMove selection
+    func selectFileRow(_ fileRow: FileRowDisplay?) {
+        selectedMoveId = fileRow?.id
+        rebuildDiagramEdges()
+    }
+    
     /// Clears the current error state
     func dismissError() {
         errorMessage = nil
@@ -205,6 +240,11 @@ final class SortDecisionViewModel: ObservableObject {
     var selectedMove: ProposedFileMove? {
         guard let id = selectedMoveId else { return nil }
         return proposedMoves.first { $0.id == id && !$0.isDeclined }
+    }
+    
+    /// Selected file as FileRowDisplay for FileMoveListView binding
+    var selectedFileRow: FileRowDisplay? {
+        selectedMove?.toFileRowDisplay()
     }
 
     var effectiveMoves: [ProposedFileMove] {

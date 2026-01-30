@@ -167,7 +167,10 @@ struct SortDecisionView: View {
                     edges: viewModel.diagramEdges,
                     selectedMove: viewModel.selectedMove,
                     layout: layout,
-                    size: layoutSize
+                    size: layoutSize,
+                    onFileDrop: { fileId, folderId, folderName in
+                        viewModel.updateFileDestination(fileId: fileId, newFolderId: folderId, newFolderName: folderName)
+                    }
                 )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
@@ -209,115 +212,17 @@ struct SortDecisionView: View {
     // MARK: - Proposed Changes List Section
     
     private var proposedChangesList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: SortDecisionStyle.listHeaderHStackSpacing) {
-                Image(systemName: "folder.fill")
-                    .foregroundStyle(SortDecisionStyle.folderIconColor)
-                    .font(SortDecisionStyle.listHeaderIconFont)
-                Text(viewModel.rootDisplayName)
-                    .font(SortDecisionStyle.listHeaderFont)
-                    .foregroundStyle(SortDecisionStyle.textPrimary)
-                Spacer()
+        FileMoveListView(
+            files: viewModel.fileRowDisplays,
+            headerTitle: viewModel.rootDisplayName,
+            selectedFile: Binding(
+                get: { viewModel.selectedFileRow },
+                set: { viewModel.selectFileRow($0) }
+            ),
+            onCancelMove: { fileId in
+                viewModel.declineFile(id: fileId)
             }
-            .padding()
-            .background(SortDecisionStyle.cardBackground)
-            .zIndex(1)
-            
-            Divider()
-                .overlay(Color.black.opacity(SortDecisionStyle.listDividerOverlayOpacity))
-            
-            // List Content
-            ScrollView {
-                VStack(spacing: 0) {
-                    if viewModel.effectiveMoves.isEmpty {
-                        Text("No pending moves")
-                            .foregroundStyle(SortDecisionStyle.emptyListPlaceholderColor)
-                            .padding()
-                    } else {
-                        // Enumerated to calculate Zebra stripes
-                        ForEach(Array(viewModel.effectiveMoves.enumerated()), id: \.element.id) { index, move in
-                            ProposedMoveRow(
-                                move: move,
-                                index: index,
-                                isSelected: viewModel.selectedMoveId == move.id,
-                                onSelect: { viewModel.selectMove(id: move.id) },
-                                onDecline: { viewModel.declineFile(id: move.id) }
-                            )
-                            Divider()
-                        }
-                    }
-                }
-            }
-        }
-        .background(SortDecisionStyle.cardBackground)
-        .cornerRadius(SortDecisionStyle.cardCornerRadius)
-        .shadow(color: SortDecisionStyle.cardShadowColor, radius: SortDecisionStyle.cardShadowRadius, x: SortDecisionStyle.cardShadowX, y: SortDecisionStyle.cardShadowY)
-    }
-}
-
-// MARK: - Subview: Proposed Move Row
-
-struct ProposedMoveRow: View {
-    let move: ProposedFileMove
-    let index: Int
-    let isSelected: Bool
-    let onSelect: () -> Void
-    let onDecline: () -> Void
-    
-    @State private var isHoveringDecline = false
-    
-    var body: some View {
-        ZStack {
-            // Zebra Styling Background
-            // If selected: Blue tint.
-            // If not selected: Alternate between White and Very Light Gray (0.97)
-            if isSelected {
-                Color.blue.opacity(SortDecisionStyle.listSelectedRowTintOpacity)
-            } else {
-                index % 2 == 0 ? SortDecisionStyle.listRowEven : SortDecisionStyle.listZebraGray
-            }
-            
-            HStack(spacing: SortDecisionStyle.listRowHStackSpacing) {
-                HStack(spacing: SortDecisionStyle.listRowHStackSpacing) {
-                    Image(systemName: "doc.text.fill")
-                        .foregroundStyle(SortDecisionStyle.listRowIconColor)
-                        .font(SortDecisionStyle.rowIconFont)
-                    
-                    Text(move.fileName)
-                        .font(SortDecisionStyle.rowFileNameFont)
-                        .foregroundStyle(SortDecisionStyle.textPrimary)
-                }
-                
-                Spacer()
-                
-                Button {
-                    withAnimation { onDecline() }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(SortDecisionStyle.rowIconFont)
-                        .foregroundStyle(isHoveringDecline ? SortDecisionStyle.declineButtonRed : SortDecisionStyle.declineButtonGray)
-                        .scaleEffect(isHoveringDecline ? SortDecisionStyle.rowDeclineHoverScale : 1.0)
-                        .animation(.easeInOut(duration: SortDecisionStyle.rowDeclineHoverDuration), value: isHoveringDecline)
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    isHoveringDecline = hovering
-                }
-            }
-            .padding(.horizontal, SortDecisionStyle.listRowPaddingHorizontal)
-            .padding(.vertical, SortDecisionStyle.listRowPaddingVertical)
-            
-            Text("moved to: \(move.toParentName)")
-                .font(SortDecisionStyle.rowMovedToFont)
-                .foregroundStyle(SortDecisionStyle.textSecondary)
-                .allowsHitTesting(false)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.spring(response: SortDecisionStyle.rowSelectSpringResponse, dampingFraction: SortDecisionStyle.rowSelectSpringDamping)) {
-                onSelect()
-            }
-        }
+        )
     }
 }
 

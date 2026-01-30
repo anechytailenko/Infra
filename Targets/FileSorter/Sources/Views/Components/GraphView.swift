@@ -56,7 +56,7 @@ struct GraphNodeView: View {
 struct GraphView: View {
     enum Mode {
         case folder(FolderNode, onFolderSelected: ((FolderNode) -> Void)?)
-        case diagram(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize)
+        case diagram(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize, onFileDrop: ((UUID, UUID, String) -> Void)?)
     }
     private let mode: Mode
 
@@ -64,16 +64,19 @@ struct GraphView: View {
         mode = .folder(root, onFolderSelected: onFolderSelected)
     }
 
-    init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
-        mode = .diagram(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
+    /// Diagram mode initializer with optional file drop handler for drag-and-drop support.
+    /// - Parameters:
+    ///   - onFileDrop: Callback when a file is dropped on a folder: (fileId, folderId, folderName)
+    init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize, onFileDrop: ((UUID, UUID, String) -> Void)? = nil) {
+        mode = .diagram(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size, onFileDrop: onFileDrop)
     }
 
     var body: some View {
         switch mode {
         case .folder(let root, let onFolderSelected):
             folderBody(root: root, onFolderSelected: onFolderSelected)
-        case .diagram(let nodes, let edges, let selectedMove, let layout, let size):
-            diagramBody(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
+        case .diagram(let nodes, let edges, let selectedMove, let layout, let size, let onFileDrop):
+            diagramBody(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size, onFileDrop: onFileDrop)
         }
     }
 
@@ -88,12 +91,12 @@ struct GraphView: View {
 
     // MARK: - Diagram Mode
 
-    private func diagramBody(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) -> some View {
+    private func diagramBody(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize, onFileDrop: ((UUID, UUID, String) -> Void)?) -> some View {
         let layoutSize = size
         let padding = SortDecisionStyle.diagramInnerPadding
         return ZStack(alignment: .topLeading) {
             diagramEdgesLayer(edges: edges, selectedMove: selectedMove, layout: layout)
-            diagramNodesLayer(nodes: nodes, layout: layout)
+            diagramNodesLayer(nodes: nodes, layout: layout, onFileDrop: onFileDrop)
             if let move = selectedMove {
                 diagramFileNodesLayer(move: move, layout: layout)
             }
@@ -152,11 +155,14 @@ struct GraphView: View {
         }
     }
 
-    private func diagramNodesLayer(nodes: [GraphNodeData], layout: any GraphDiagramLayout) -> some View {
+    private func diagramNodesLayer(nodes: [GraphNodeData], layout: any GraphDiagramLayout, onFileDrop: ((UUID, UUID, String) -> Void)?) -> some View {
         ForEach(nodes) { node in
             if let pos = layout.position(for: node.id) {
-                GraphNodeView(icon: node.iconName, text: node.label, baseColor: node.color, isGhost: node.isGhost)
-                    .position(pos)
+                DroppableFolderNode(
+                    node: node,
+                    position: pos,
+                    onFileDrop: onFileDrop
+                )
             }
         }
     }
@@ -176,6 +182,36 @@ struct GraphView: View {
                     .anchorAtLeading(at: toPos)
             }
         }
+    }
+}
+
+// MARK: - Droppable Folder Node (supports drag-and-drop in diagram mode)
+
+private struct DroppableFolderNode: View {
+    let node: GraphNodeData
+    let position: CGPoint
+    let onFileDrop: ((UUID, UUID, String) -> Void)?
+    
+    @State private var isTargeted = false
+    
+    var body: some View {
+        GraphNodeView(icon: node.iconName, text: node.label, baseColor: node.color, isGhost: node.isGhost)
+            .scaleEffect(isTargeted ? 1.1 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: SortDecisionStyle.nodeCornerRadius)
+                    .stroke(Color.blue, lineWidth: isTargeted ? 3 : 0)
+            )
+            .shadow(color: isTargeted ? Color.blue.opacity(0.5) : Color.clear, radius: 8)
+            .animation(.easeInOut(duration: 0.15), value: isTargeted)
+            .position(position)
+            .dropDestination(for: String.self) { items, _ in
+                guard let fileIdString = items.first,
+                      let fileId = UUID(uuidString: fileIdString) else { return false }
+                onFileDrop?(fileId, node.id, node.label)
+                return true
+            } isTargeted: { targeted in
+                isTargeted = targeted
+            }
     }
 }
 

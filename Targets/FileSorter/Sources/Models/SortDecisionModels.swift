@@ -1,5 +1,19 @@
 import Foundation
 
+// MARK: - File Row Display (for FileMoveListView)
+
+struct FileRowDisplay: Identifiable {
+    let id: UUID
+    let fileName: String
+    let destination: String?
+    
+    init(id: UUID = UUID(), fileName: String, destination: String?) {
+        self.id = id
+        self.fileName = fileName
+        self.destination = destination
+    }
+}
+
 // MARK: - Proposed File Move (list row + diagram from/to)
 
 struct ProposedFileMove: Identifiable, Hashable {
@@ -27,6 +41,16 @@ struct ProposedFileMove: Identifiable, Hashable {
         self.toParentId = toParentId
         self.toParentName = toParentName
         self.isDeclined = isDeclined
+    }
+    
+    /// Converts to FileRowDisplay for use in FileMoveListView.
+    /// Returns nil destination if the move is declined.
+    func toFileRowDisplay() -> FileRowDisplay {
+        FileRowDisplay(
+            id: self.id,
+            fileName: self.fileName,
+            destination: self.isDeclined ? nil : self.toParentName
+        )
     }
 }
 
