@@ -7,14 +7,19 @@ struct SortDecisionView: View {
     @StateObject private var viewModel: SortDecisionViewModel
     @Environment(\.dismiss) private var dismiss
     
+    /// Callback when Accept completes successfully; e.g. pop to Home by dismissing FolderDetailView.
+    var onExecutionComplete: (() -> Void)?
+    
     /// Initialize with mock data (default)
     init() {
         _viewModel = StateObject(wrappedValue: SortDecisionViewModel())
+        self.onExecutionComplete = nil
     }
     
-    /// Initialize with AI suggestions response from the API
-    init(aiResponse: AISuggestResponse) {
-        _viewModel = StateObject(wrappedValue: SortDecisionViewModel(aiResponse: aiResponse))
+    /// Initialize with AI suggestions response from the API and optional folder name for header/root.
+    init(aiResponse: AISuggestResponse, folderName: String? = nil, onExecutionComplete: (() -> Void)? = nil) {
+        _viewModel = StateObject(wrappedValue: SortDecisionViewModel(aiResponse: aiResponse, folderName: folderName))
+        self.onExecutionComplete = onExecutionComplete
     }
     
     var body: some View {
@@ -50,6 +55,15 @@ struct SortDecisionView: View {
         .onChange(of: viewModel.executionComplete) { complete in
             if complete {
                 dismiss()
+                // Pop parent (FolderDetailView) after this view is popped so we land on HomeView
+                DispatchQueue.main.async { onExecutionComplete?() }
+            }
+        }
+        .onChange(of: viewModel.declineComplete) { complete in
+            if complete {
+                dismiss()
+                // Pop parent (FolderDetailView) after this view is popped so we land on HomeView
+                DispatchQueue.main.async { onExecutionComplete?() }
             }
         }
         .alert("Error", isPresented: $viewModel.showErrorAlert) {
@@ -200,7 +214,7 @@ struct SortDecisionView: View {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(SortDecisionStyle.folderIconColor)
                     .font(SortDecisionStyle.listHeaderIconFont)
-                Text("User")
+                Text(viewModel.rootDisplayName)
                     .font(SortDecisionStyle.listHeaderFont)
                     .foregroundStyle(SortDecisionStyle.textPrimary)
                 Spacer()
@@ -333,8 +347,9 @@ struct DiagramLayout: GraphDiagramLayout {
     let nodes: [DiagramNode]
     let selectedMove: ProposedFileMove?
     
+    /// Root is always the first node (ViewModel adds it first). Do not rely on name "User"/"Root".
     private var rootNode: DiagramNode? {
-        nodes.first { $0.name == "User" }
+        nodes.first
     }
     
     private var folderNodes: [DiagramNode] {

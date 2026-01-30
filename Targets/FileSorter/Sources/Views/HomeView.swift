@@ -67,12 +67,9 @@ struct HomeView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "An unknown error occurred.")
             }
-            .task {
-                // Fetch filesystem on view appear (only if not already loaded)
-                // Uses default path from APIConfiguration (Single Responsibility)
-                if !viewModel.isDataAvailable {
-                    await viewModel.fetchFilesystem(path: APIConfiguration.defaultFilesystemPath)
-                }
+            .task(id: viewModel.selectedFolder?.id) {
+                // Poll backend when at root: first load (selectedFolder nil) or when returning (selectedFolder becomes nil again)
+                await viewModel.refreshOnAppear()
             }
         }
     }

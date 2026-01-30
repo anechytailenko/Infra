@@ -131,4 +131,12 @@ struct SortDecisionStyle {
     static let diagramMinLayoutHeight: CGFloat = 320
     static let diagramHorizontalMargin: CGFloat = 48
     static let diagramVerticalMargin: CGFloat = 40
+    
+    // MARK: - Edge Connection Offsets
+    // Used to connect edges to node edges rather than centers
+    
+    /// Estimated half-width of a folder node (short labels like "home", "cats")
+    static let folderNodeHalfWidth: CGFloat = 40
+    /// Estimated half-width of a file node (can have long filenames)
+    static let fileNodeHalfWidth: CGFloat = 60
 }

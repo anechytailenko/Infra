@@ -87,6 +87,13 @@ final class HomeViewModel: ObservableObject {
         await fetchFilesystem(path: currentPath)
     }
     
+    /// Refresh filesystem from backend. Uses last path if available, otherwise default.
+    /// Call when HomeView appears so the backend is polled every time the user opens home.
+    func refreshOnAppear() async {
+        let path = currentPath.isEmpty ? APIConfiguration.defaultFilesystemPath : currentPath
+        await fetchFilesystem(path: path)
+    }
+    
     /// Clears the current error state
     func dismissError() {
         errorMessage = nil

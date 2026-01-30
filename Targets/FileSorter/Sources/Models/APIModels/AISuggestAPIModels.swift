@@ -29,15 +29,31 @@ struct ProposedAction: Decodable, Identifiable {
     /// Unique identifier for UI purposes
     var id: String { originalPath }
     
-    /// Extracts the filename from the original path
+    /// Normalizes path separators (handles both Unix `/` and Windows `\` paths)
+    private static func normalizePath(_ path: String) -> String {
+        path.replacingOccurrences(of: "\\", with: "/")
+    }
+    
+    /// Extracts only the filename from the original path (no directory components)
+    /// Handles both Unix and Windows path separators
     var fileName: String {
-        (originalPath as NSString).lastPathComponent
+        let normalized = Self.normalizePath(originalPath)
+        return (normalized as NSString).lastPathComponent
     }
     
     /// Extracts the parent folder name from the original path
+    /// Handles both Unix and Windows path separators
     var fromFolderName: String {
-        let parent = (originalPath as NSString).deletingLastPathComponent
+        let normalized = Self.normalizePath(originalPath)
+        let parent = (normalized as NSString).deletingLastPathComponent
         return (parent as NSString).lastPathComponent
+    }
+    
+    /// Extracts only the folder name from suggestedFolder (in case it's a path)
+    /// Handles both Unix and Windows path separators
+    var suggestedFolderName: String {
+        let normalized = Self.normalizePath(suggestedFolder)
+        return (normalized as NSString).lastPathComponent
     }
     
     /// Confidence as a percentage string (e.g., "92%")
@@ -67,9 +83,9 @@ extension ProposedAction {
 
 extension Array where Element == ProposedAction {
     
-    /// Extracts unique folder names that the AI suggests creating.
+    /// Extracts unique folder names that the AI suggests creating (names only, no paths).
     var uniqueSuggestedFolders: Set<String> {
-        Set(map { $0.suggestedFolder })
+        Set(map { $0.suggestedFolderName })
     }
     
     /// Groups proposed actions by their suggested folder.

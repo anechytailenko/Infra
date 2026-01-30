@@ -105,15 +105,35 @@ struct GraphView: View {
     private func diagramEdgesLayer(edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout) -> some View {
         Canvas { context, _ in
             for edge in edges {
-                let from = layout.position(for: edge.fromId)
-                let to: CGPoint? = {
+                let fromCenter = layout.position(for: edge.fromId)
+                let toCenter: CGPoint? = {
                     switch edge.style {
                     case .normal: return layout.position(for: edge.toId)
                     case .originalFile: return selectedMove.flatMap { layout.fileOriginalPosition(move: $0) }
                     case .proposedFile: return selectedMove.flatMap { layout.fileProposedPosition(move: $0) }
                     }
                 }()
-                guard let start = from, let end = to else { continue }
+                guard let startCenter = fromCenter, let endCenter = toCenter else { continue }
+                
+                // Offset start point to RIGHT edge of source node (folder)
+                let start = CGPoint(
+                    x: startCenter.x + SortDecisionStyle.folderNodeHalfWidth,
+                    y: startCenter.y
+                )
+                
+                // Offset end point to LEFT edge of target node
+                // File nodes are now anchored at their left edge, so no offset needed for them
+                let endOffset: CGFloat = {
+                    switch edge.style {
+                    case .normal: return SortDecisionStyle.folderNodeHalfWidth
+                    case .originalFile, .proposedFile: return 0 // File nodes anchored at left edge
+                    }
+                }()
+                let end = CGPoint(
+                    x: endCenter.x - endOffset,
+                    y: endCenter.y
+                )
+                
                 var path = Path()
                 path.move(to: start)
                 let deltaX = end.x - start.x
@@ -144,14 +164,44 @@ struct GraphView: View {
     private func diagramFileNodesLayer(move: ProposedFileMove, layout: any GraphDiagramLayout) -> some View {
         Group {
             if let fromPos = layout.fileOriginalPosition(move: move) {
+                // Anchor file node by its LEFT edge (not centered) so edges connect properly
                 GraphNodeView(icon: "doc.fill", text: move.fileName, baseColor: .red, isGhost: true)
-                    .position(fromPos)
+                    .fixedSize()
+                    .anchorAtLeading(at: fromPos)
             }
             if let toPos = layout.fileProposedPosition(move: move) {
+                // Anchor file node by its LEFT edge (not centered) so edges connect properly
                 GraphNodeView(icon: "doc.fill", text: move.fileName, baseColor: .green, isGhost: false)
-                    .position(toPos)
+                    .fixedSize()
+                    .anchorAtLeading(at: toPos)
             }
         }
+    }
+}
+
+// MARK: - View Extension for Leading-Edge Anchored Positioning
+
+extension View {
+    /// Positions the view so its leading (left) edge is at the specified point.
+    /// Unlike `.position()` which centers the view, this anchors at the left edge.
+    func anchorAtLeading(at point: CGPoint) -> some View {
+        self.modifier(LeadingAnchorModifier(targetPoint: point))
+    }
+}
+
+private struct LeadingAnchorModifier: ViewModifier {
+    let targetPoint: CGPoint
+    @State private var viewSize: CGSize = .zero
+    
+    func body(content: Content) -> some View {
+        content
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { viewSize = geo.size }
+                    .onChange(of: geo.size) { newSize in viewSize = newSize }
+            })
+            // Position so left edge is at targetPoint.x (offset by half width to the right)
+            .position(x: targetPoint.x + viewSize.width / 2, y: targetPoint.y)
     }
 }
 

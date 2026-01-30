@@ -13,6 +13,8 @@ final class SortDecisionViewModel: ObservableObject {
     @Published var selectedMoveId: UUID?
     @Published private(set) var diagramNodes: [DiagramNode]
     @Published private(set) var diagramEdges: [DiagramEdge]
+    /// Display name for the root folder (e.g. selected folder name). Shown in list header.
+    @Published private(set) var rootDisplayName: String = "Folder"
     
     // MARK: - Execution State
     
@@ -20,6 +22,8 @@ final class SortDecisionViewModel: ObservableObject {
     @Published var isExecuting: Bool = false
     /// True when execution completes successfully
     @Published var executionComplete: Bool = false
+    /// True when user declines all and should navigate back
+    @Published var declineComplete: Bool = false
     
     // MARK: - Error State
     
@@ -52,42 +56,48 @@ final class SortDecisionViewModel: ObservableObject {
     }
     
     /// Initialize with AI suggestions response from the API.
-    /// This is the primary way to create this ViewModel when coming from FolderDetailView.
-    init(aiResponse: AISuggestResponse, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
+    /// Pass folderName to show the selected folder name in the UI (root node and list header).
+    init(aiResponse: AISuggestResponse, folderName: String? = nil, httpClient: HTTPClient = URLSessionHTTPClient.shared) {
         self.httpClient = httpClient
         self.originalProposedActions = aiResponse.proposedActions
+        let rootDisplay = folderName ?? "Folder"
+        self.rootDisplayName = rootDisplay
         
         // Build diagram nodes from unique folders
         let rootId = UUID()
         var folderIds: [String: UUID] = [:]
         var nodes: [DiagramNode] = []
         
-        // Add root node
-        let rootNode = DiagramNode(id: rootId, name: "Root", isFolder: true, isAICreated: false)
+        // Add root node (name = selected folder for display; layout uses first node as root)
+        let rootNode = DiagramNode(id: rootId, name: rootDisplay, isFolder: true, isAICreated: false)
         nodes.append(rootNode)
         
-        // Add folder nodes for each unique suggested folder
-        for folderName in aiResponse.proposedActions.uniqueSuggestedFolders {
-            let folderId = UUID()
-            folderIds[folderName] = folderId
-            let isAICreated = true // AI-suggested folders
-            let folderNode = DiagramNode(id: folderId, name: folderName, isFolder: true, isAICreated: isAICreated)
-            nodes.append(folderNode)
+        // Add folder nodes for each unique suggested folder (use folder name only, not path)
+        for action in aiResponse.proposedActions {
+            let folderName = action.suggestedFolderName
+            if folderIds[folderName] == nil {
+                let folderId = UUID()
+                folderIds[folderName] = folderId
+                let isAICreated = true // AI-suggested folders
+                let folderNode = DiagramNode(id: folderId, name: folderName, isFolder: true, isAICreated: isAICreated)
+                nodes.append(folderNode)
+            }
         }
         
         self.diagramNodes = nodes
         
-        // Convert ProposedActions to ProposedFileMoves
+        // Convert ProposedActions to ProposedFileMoves (use folder name only, not path)
         var moves: [ProposedFileMove] = []
         var mapping: [UUID: ProposedAction] = [:]
         for action in aiResponse.proposedActions {
-            let toParentId = folderIds[action.suggestedFolder] ?? rootId
+            let folderName = action.suggestedFolderName
+            let toParentId = folderIds[folderName] ?? rootId
             let move = ProposedFileMove(
                 fileName: action.fileName,
                 fromParentId: rootId,
                 fromParentName: action.fromFolderName,
                 toParentId: toParentId,
-                toParentName: action.suggestedFolder
+                toParentName: folderName
             )
             moves.append(move)
             mapping[move.id] = action
@@ -163,6 +173,7 @@ final class SortDecisionViewModel: ObservableObject {
         }
         selectedMoveId = nil
         rebuildDiagramEdges()
+        declineComplete = true
     }
 
     func declineFile(id: UUID) {
@@ -201,7 +212,7 @@ final class SortDecisionViewModel: ObservableObject {
     }
 
     private func rebuildDiagramEdges() {
-        let rootId = diagramNodes.first { $0.name == "Root" || $0.name == "User" }?.id ?? UUID()
+        let rootId = diagramNodes.first?.id ?? UUID()
         var edges: [DiagramEdge] = diagramNodes
             .filter { $0.id != rootId }
             .map { DiagramEdge(fromId: rootId, toId: $0.id, style: .normal) }

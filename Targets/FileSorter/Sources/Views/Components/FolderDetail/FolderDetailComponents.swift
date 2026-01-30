@@ -13,7 +13,7 @@ struct FileListView: View {
             HStack(spacing: FolderDetailStyle.listHeaderHStackSpacing) {
                 Image(systemName: "doc.text")
                     .foregroundStyle(AppStyle.textSecondary)
-                Text("User")
+                Text(viewModel.folder?.name ?? "Folder")
                     .font(AppStyle.headlineFont)
                     .foregroundStyle(AppStyle.textPrimary)
                 Spacer()

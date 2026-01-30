@@ -151,7 +151,7 @@ struct FolderDetailView: View {
     @ViewBuilder
     private var sortDecisionDestination: some View {
         if let aiResponse = viewModel.aiSuggestionsResponse {
-            SortDecisionView(aiResponse: aiResponse)
+            SortDecisionView(aiResponse: aiResponse, folderName: folder?.name, onExecutionComplete: { dismiss() })
         } else {
             SortDecisionView()
         }
