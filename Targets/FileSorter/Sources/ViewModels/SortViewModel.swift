@@ -1,19 +1,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - File Row Model
-struct FileRowDisplay: Identifiable {
-    let id: UUID
-    let fileName: String
-    let destination: String?
-    
-    init(id: UUID = UUID(), fileName: String, destination: String?) {
-        self.id = id
-        self.fileName = fileName
-        self.destination = destination
-    }
-}
-
 @MainActor
 class SortViewModel: ObservableObject {
     
@@ -48,13 +35,19 @@ class SortViewModel: ObservableObject {
         if selectedFile?.id == fileID { selectedFile = newItem }
     }
     
-    // Updates model when file is dropped
+    // Updates model when file is dropped (by UUID)
     func updateFileDestination(fileID: UUID, newFolderName: String) {
         guard let index = allFilesList.firstIndex(where: { $0.id == fileID }) else { return }
         let oldItem = allFilesList[index]
         let newItem = FileRowDisplay(id: oldItem.id, fileName: oldItem.fileName, destination: newFolderName)
         allFilesList[index] = newItem
         if selectedFile?.id == fileID { selectedFile = newItem }
+    }
+    
+    // Updates model when file is dropped from list (by UUID string)
+    func updateFileDestination(fileUUIDString: String, newFolderName: String) {
+        guard let uuid = UUID(uuidString: fileUUIDString) else { return }
+        updateFileDestination(fileID: uuid, newFolderName: newFolderName)
     }
     
     func scanAndSortFolder(path: String) {

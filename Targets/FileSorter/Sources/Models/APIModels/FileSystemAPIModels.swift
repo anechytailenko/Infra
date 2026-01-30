@@ -30,15 +30,29 @@ struct FSNodeResponse: Codable {
 extension FSNodeResponse {
     
     /// Converts the API response to a FolderNode tree for the graph view.
-    /// Includes path and direct child files for each folder.
+    /// Includes directories as children and files as FileItems.
     func toFolderNode() -> FolderNode {
         let childFolders = children
             .filter { $0.isDirectory }
             .map { $0.toFolderNode() }
         
-        let directFiles = directChildFiles()
+        let childFiles = directChildFiles()
         
-        return FolderNode(name: name, path: path, children: childFolders, files: directFiles)
+        // #region agent log
+        let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "FileSystemAPIModels.swift:toFolderNode", "message": "Converting FSNodeResponse to FolderNode", "data": ["name": name, "path": path, "childFoldersCount": childFolders.count, "childFilesCount": childFiles.count], "timestamp": Date().timeIntervalSince1970 * 1000]
+        if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+            let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+            if let handle = FileHandle(forWritingAtPath: logPath) {
+                handle.seekToEndOfFile()
+                handle.write((jsonString + "\n").data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+            }
+        }
+        // #endregion
+        
+        return FolderNode(name: name, path: path, children: childFolders, files: childFiles)
     }
     
     /// Converts a file node to a FileItem domain model.

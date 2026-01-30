@@ -21,10 +21,40 @@ struct SortView: View {
                 
                 // MARK: - State 3: Graph Display
                 if let root = viewModel.rootFolderNode {
+                    // #region agent log
+                    let _ = {
+                        let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "SortView.swift:graphDisplay", "message": "Root node available", "data": ["rootName": root.name, "childrenCount": root.children.count], "timestamp": Date().timeIntervalSince1970 * 1000]
+                        if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+                            let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+                            if let handle = FileHandle(forWritingAtPath: logPath) {
+                                handle.seekToEndOfFile()
+                                handle.write((jsonString + "\n").data(using: .utf8)!)
+                                handle.closeFile()
+                            } else {
+                                FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+                            }
+                        }
+                    }()
+                    // #endregion
                     VStack(spacing: 0) {
                         
                         // 1. Interactive Graph
                         GeometryReader { geo in
+                            // #region agent log
+                            let _ = {
+                                let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "D", "location": "SortView.swift:GeometryReader", "message": "Graph GeometryReader size", "data": ["width": geo.size.width, "height": geo.size.height], "timestamp": Date().timeIntervalSince1970 * 1000]
+                                if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+                                    let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+                                    if let handle = FileHandle(forWritingAtPath: logPath) {
+                                        handle.seekToEndOfFile()
+                                        handle.write((jsonString + "\n").data(using: .utf8)!)
+                                        handle.closeFile()
+                                    } else {
+                                        FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+                                    }
+                                }
+                            }()
+                            // #endregion
                             GraphView(
                                 root: root,
                                 startDepth: viewModel.baseDepth,
@@ -32,10 +62,17 @@ struct SortView: View {
                                 onAccept: { print("Accept Pressed") },
                                 onDecline: { print("Decline Pressed") },
                                 
-                                // Wiring up Drag & Drop
+                                // Wiring up Drag & Drop within graph
                                 onManualMove: { fileID, newFolderName in
                                     withAnimation {
                                         viewModel.updateFileDestination(fileID: fileID, newFolderName: newFolderName)
+                                    }
+                                },
+                                
+                                // Wiring up Drag & Drop from file list to graph
+                                onFileDrop: { fileUUIDString, folderName in
+                                    withAnimation {
+                                        viewModel.updateFileDestination(fileUUIDString: fileUUIDString, newFolderName: folderName)
                                     }
                                 }
                             )

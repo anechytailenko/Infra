@@ -58,8 +58,12 @@ struct GraphView: View {
     var onAccept: (() -> Void)?
     var onDecline: (() -> Void)?
     var onManualMove: ((UUID, String) -> Void)?
+    var onFolderSelected: ((FolderNode) -> Void)?
+    var onFileDrop: ((String, String) -> Void)?  // (fileUUIDString, folderName) - for drops from FileMoveListView
+    var showHUD: Bool = true
+    var enableHoverAnimation: Bool = false
 
-    init(root: FolderNode, startDepth: Int = 0, selectedFile: FileRowDisplay? = nil, onAccept: (() -> Void)? = nil, onDecline: (() -> Void)? = nil, onManualMove: ((UUID, String) -> Void)? = nil) {
+    init(root: FolderNode, startDepth: Int = 0, selectedFile: FileRowDisplay? = nil, onAccept: (() -> Void)? = nil, onDecline: (() -> Void)? = nil, onManualMove: ((UUID, String) -> Void)? = nil, onFolderSelected: ((FolderNode) -> Void)? = nil, onFileDrop: ((String, String) -> Void)? = nil, showHUD: Bool = true, enableHoverAnimation: Bool = false) {
         mode = .folder(root)
         self.rootNode = root
         self.startDepth = startDepth
@@ -67,6 +71,10 @@ struct GraphView: View {
         self.onAccept = onAccept
         self.onDecline = onDecline
         self.onManualMove = onManualMove
+        self.onFolderSelected = onFolderSelected
+        self.onFileDrop = onFileDrop
+        self.showHUD = showHUD
+        self.enableHoverAnimation = enableHoverAnimation
     }
 
     init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
@@ -82,6 +90,21 @@ struct GraphView: View {
 
     private func folderBody(root: FolderNode) -> some View {
         GeometryReader { geo in
+            // #region agent log
+            let _ = {
+                let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "G", "location": "GraphView.swift:folderBody", "message": "GeometryReader in folderBody", "data": ["width": geo.size.width, "height": geo.size.height, "rootName": root.name, "rootChildrenCount": root.children.count], "timestamp": Date().timeIntervalSince1970 * 1000]
+                if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+                    let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+                    if let handle = FileHandle(forWritingAtPath: logPath) {
+                        handle.seekToEndOfFile()
+                        handle.write((jsonString + "\n").data(using: .utf8)!)
+                        handle.closeFile()
+                    } else {
+                        FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+                    }
+                }
+            }()
+            // #endregion
             let config = GraphLayoutConfig(totalAvailableWidth: geo.size.width, zoomScale: zoomScale)
             
             ZStack(alignment: .topLeading) {
@@ -92,7 +115,7 @@ struct GraphView: View {
                             GridLinesView(config: config)
                             
                             // 2. Main Graph Layout
-                            FolderGraphLayout(root: root, config: config, selectedFile: selectedFile, isDragging: isDraggingFile)
+                            FolderGraphLayout(root: root, config: config, selectedFile: selectedFile, isDragging: isDraggingFile, onFolderSelected: onFolderSelected, onFileDrop: onFileDrop, enableHoverAnimation: enableHoverAnimation)
                                 .padding(.vertical, 20)
                                 .padding(.leading, (config.columnStride - config.nodeWidth) / 2)
                                 
@@ -120,7 +143,7 @@ struct GraphView: View {
                                 }
                         }
                         .contentShape(Rectangle())
-                        .frame(width: max(geo.size.width, geo.size.width * zoomScale), height: max(geo.size.height - 80, 400) * zoomScale, alignment: .topLeading)
+                        .frame(minWidth: geo.size.width * zoomScale, minHeight: geo.size.height * zoomScale, alignment: .topLeading)
                         
                         // Footer
                         HStack(spacing: 0) {
@@ -143,12 +166,14 @@ struct GraphView: View {
                     }.onEnded { _ in lastZoomScale = 1.0 })
                 }
                 
-                // HUD
-                HStack(spacing: 12) {
-                    Button(action: { onAccept?() }) { Label("Accept", systemImage: "checkmark").padding(10).background(Color.green).foregroundColor(.white).cornerRadius(8) }.buttonStyle(.plain)
-                    Button(action: { onDecline?() }) { Label("Decline", systemImage: "xmark").padding(10).background(Color.red).foregroundColor(.white).cornerRadius(8) }.buttonStyle(.plain)
+                // HUD (conditionally shown)
+                if showHUD {
+                    HStack(spacing: 12) {
+                        Button(action: { onAccept?() }) { Label("Accept", systemImage: "checkmark").padding(10).background(AppStyle.acceptButtonColor).foregroundColor(.white).cornerRadius(8) }.buttonStyle(.plain)
+                        Button(action: { onDecline?() }) { Label("Decline", systemImage: "xmark").padding(10).background(AppStyle.declineButtonColor).foregroundColor(.white).cornerRadius(8) }.buttonStyle(.plain)
+                    }
+                    .padding([.top, .trailing], 24).frame(maxWidth: .infinity, alignment: .topTrailing)
                 }
-                .padding([.top, .trailing], 24).frame(maxWidth: .infinity, alignment: .topTrailing)
             }
         }
     }
@@ -313,9 +338,12 @@ struct FolderGraphLayout: View {
     let config: GraphLayoutConfig
     let selectedFile: FileRowDisplay?
     let isDragging: Bool
+    var onFolderSelected: ((FolderNode) -> Void)?
+    var onFileDrop: ((String, String) -> Void)?
+    var enableHoverAnimation: Bool = false
 
     var body: some View {
-        RecursiveNodeView(node: root, depth: 0, config: config, selectedFile: selectedFile, isDragging: isDragging)
+        RecursiveNodeView(node: root, depth: 0, config: config, selectedFile: selectedFile, isDragging: isDragging, onFolderSelected: onFolderSelected, onFileDrop: onFileDrop, enableHoverAnimation: enableHoverAnimation)
             .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
                 GeometryReader { geometry in
                     ZStack {
@@ -390,12 +418,37 @@ struct RecursiveNodeView: View {
     let config: GraphLayoutConfig
     let selectedFile: FileRowDisplay?
     let isDragging: Bool
+    var onFolderSelected: ((FolderNode) -> Void)?
+    var onFileDrop: ((String, String) -> Void)?
+    var enableHoverAnimation: Bool = false
     
     var body: some View {
+        // #region agent log
+        let _ = {
+            let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "H", "location": "GraphView.swift:RecursiveNodeView", "message": "Rendering node", "data": ["nodeName": node.name, "depth": depth, "nodeWidth": config.nodeWidth, "childrenCount": node.children.count], "timestamp": Date().timeIntervalSince1970 * 1000]
+            if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+                let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+                if let handle = FileHandle(forWritingAtPath: logPath) {
+                    handle.seekToEndOfFile()
+                    handle.write((jsonString + "\n").data(using: .utf8)!)
+                    handle.closeFile()
+                } else {
+                    FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+                }
+            }
+        }()
+        // #endregion
         HStack(alignment: .center, spacing: config.spacing) {
             
-            FolderItemView(name: node.name, width: config.nodeWidth, isNew: node.isNew)
-                .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
+            FolderItemView(
+                name: node.name,
+                width: config.nodeWidth,
+                isNew: node.isNew,
+                enableHoverAnimation: enableHoverAnimation,
+                onTap: { onFolderSelected?(node) },
+                onFileDrop: { fileUUIDString in onFileDrop?(fileUUIDString, node.name) }
+            )
+            .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
             
             let shouldInsertFile: Bool = {
                 guard let file = selectedFile else { return false }
@@ -421,7 +474,7 @@ struct RecursiveNodeView: View {
                         
                         let childIndex = (shouldInsertFile && i > middleIndex) ? i - 1 : i
                         if childIndex < childrenCount && ( !shouldInsertFile || i != middleIndex ) {
-                            RecursiveNodeView(node: node.children[childIndex], depth: depth + 1, config: config, selectedFile: selectedFile, isDragging: isDragging)
+                            RecursiveNodeView(node: node.children[childIndex], depth: depth + 1, config: config, selectedFile: selectedFile, isDragging: isDragging, onFolderSelected: onFolderSelected, onFileDrop: onFileDrop, enableHoverAnimation: enableHoverAnimation)
                         }
                     }
                 }
@@ -451,15 +504,65 @@ struct FileNodeView: View {
 }
 
 struct FolderItemView: View {
-    let name: String; let width: CGFloat; var isNew: Bool = false
+    let name: String
+    let width: CGFloat
+    var isNew: Bool = false
+    var enableHoverAnimation: Bool = false
+    var onTap: (() -> Void)? = nil
+    var onFileDrop: ((String) -> Void)? = nil
+    
+    @State private var isHovering: Bool = false
+    @State private var isDropTargeted: Bool = false
+    
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "folder.fill").foregroundColor(isNew ? .green : AppStyle.folderIconColor)
-            Text(name).font(.system(size: 14, weight: .medium)).lineLimit(1).minimumScaleFactor(0.6).foregroundColor(.black)
+            Image(systemName: "folder.fill")
+                .foregroundColor(isNew ? AppStyle.newFolderColor : AppStyle.folderIconColor)
+            Text(name)
+                .font(.system(size: 14, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .foregroundColor(AppStyle.textPrimary)
         }
-        .padding(.vertical, 8).padding(.horizontal, 6).frame(width: width)
-        .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isNew ? Color.green.opacity(0.5) : Color.blue.opacity(0.3), lineWidth: 1))
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .frame(width: width)
+        .background(
+            isDropTargeted ? AppStyle.fileNodeColor.opacity(0.2) :
+            (enableHoverAnimation && isHovering ? AppStyle.folderIconColor.opacity(0.1) : AppStyle.cardBackground)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    isDropTargeted ? AppStyle.fileNodeColor :
+                    (enableHoverAnimation && isHovering ? AppStyle.folderIconColor :
+                    (isNew ? AppStyle.newFolderColor.opacity(0.5) : AppStyle.folderIconColor.opacity(0.3))),
+                    lineWidth: (enableHoverAnimation && isHovering) || isDropTargeted ? 2 : 1
+                )
+        )
+        .scaleEffect(enableHoverAnimation && isHovering ? 1.05 : 1.0)
+        .shadow(
+            color: enableHoverAnimation && isHovering ? AppStyle.folderIconColor.opacity(0.3) : Color.clear,
+            radius: isHovering ? 6 : 0
+        )
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            if enableHoverAnimation {
+                isHovering = hovering
+            }
+        }
+        .onTapGesture {
+            onTap?()
+        }
+        .dropDestination(for: String.self) { items, _ in
+            guard let fileUUIDString = items.first else { return false }
+            onFileDrop?(fileUUIDString)
+            return true
+        } isTargeted: { targeted in
+            isDropTargeted = targeted
+        }
     }
 }
 
@@ -485,6 +588,3 @@ struct NodeBoundsKey: PreferenceKey {
     static func reduce(value: inout Value, nextValue: () -> Value) { value.merge(nextValue(), uniquingKeysWith: { $1 }) }
 }
 
-struct FolderNode: Identifiable {
-    let id = UUID(); let name: String; var isNew: Bool = false; var children: [FolderNode] = []
-}

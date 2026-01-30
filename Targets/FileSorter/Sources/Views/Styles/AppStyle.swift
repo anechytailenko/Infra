@@ -19,8 +19,6 @@ struct AppStyle {
 
     static let textPrimary = Color.black
     static let textSecondary = Color.gray
-    /// Light grey for search bar example query so the user understands it is placeholder text.
-    static let searchExampleColor = Color.gray.opacity(0.6)
     static let headlineFont = Font.system(.title, design: .default)
     static let bodyFontSize: CGFloat = 14
     static let bodyFontWeight: Font.Weight = .medium
@@ -57,6 +55,24 @@ struct AppStyle {
 
     static let edgeNormalColor = Color.blue.opacity(0.4)
     static let edgeNormalLineWidth: CGFloat = 2
+    
+    // MARK: - List Row Styling
+    
+    static let listRowSelectedBackground = Color.blue.opacity(0.1)
+    static let listRowAlternateBackground = Color.gray.opacity(0.08)
+    
+    // MARK: - File Node / Diagram Colors
+    
+    static let fileNodeColor = Color.green
+    static let newFolderColor = Color.green
+    static let acceptButtonColor = Color.green
+    static let declineButtonColor = Color.red
+    static let dragConnectionColor = Color.green
+    
+    // MARK: - Search
+    
+    /// Light grey for search bar example query so the user understands it is placeholder text.
+    static let searchExampleColor = Color.gray.opacity(0.6)
 
     // MARK: - Back Button (shared across FolderDetailView, SearchResultsStubView, etc.)
 

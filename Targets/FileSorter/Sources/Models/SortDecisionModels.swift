@@ -1,5 +1,12 @@
 import Foundation
 
+// MARK: - Shared Models
+
+struct FileMoveAction: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let destination: String
+}
 
 // MARK: - File Row Display (for FileMoveListView)
 
@@ -13,13 +20,6 @@ struct FileRowDisplay: Identifiable {
         self.fileName = fileName
         self.destination = destination
     }
-// MARK: - Shared Models
-
-struct FileMoveAction: Identifiable {
-    let id = UUID()
-    let fileName: String
-    let destination: String
-
 }
 
 // MARK: - Proposed File Move (list row + diagram from/to)
@@ -32,7 +32,7 @@ struct ProposedFileMove: Identifiable, Hashable {
     let toParentId: UUID
     let toParentName: String
     var isDeclined: Bool
-
+    
     init(
         id: UUID = UUID(),
         fileName: String,
@@ -69,7 +69,7 @@ struct DiagramNode: Identifiable, Hashable {
     let name: String
     let isFolder: Bool
     let isAICreated: Bool
-
+    
     init(id: UUID = UUID(), name: String, isFolder: Bool, isAICreated: Bool = false) {
         self.id = id
         self.name = name
@@ -91,7 +91,7 @@ struct DiagramEdge: Identifiable, Hashable {
     let fromId: UUID
     let toId: UUID
     let style: DiagramEdgeStyle
-
+    
     init(id: UUID = UUID(), fromId: UUID, toId: UUID, style: DiagramEdgeStyle) {
         self.id = id
         self.fromId = fromId

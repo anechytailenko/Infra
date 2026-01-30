@@ -6,7 +6,7 @@ import Combine
 struct FileSorterApp: App {
     var body: some Scene {
         WindowGroup {
-            SortView()
+            HomeView()
         }
         .windowStyle(.hiddenTitleBar)
     }

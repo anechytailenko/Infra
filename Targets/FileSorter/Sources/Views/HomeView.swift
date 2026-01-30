@@ -79,9 +79,12 @@ struct HomeView: View {
     private var graphSection: some View {
         ZStack {
             // Folders are only clickable when data is available from API
+            // No Accept/Decline HUD needed on HomeView, enable hover animation
             GraphView(
                 root: viewModel.rootNode,
-                onFolderSelected: viewModel.isDataAvailable ? { viewModel.selectFolder($0) } : nil
+                onFolderSelected: viewModel.isDataAvailable ? { viewModel.selectFolder($0) } : nil,
+                showHUD: false,
+                enableHoverAnimation: true
             )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)

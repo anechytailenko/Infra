@@ -35,6 +35,7 @@ struct GraphViewStyle {
 
     // MARK: - Zoom / Scale
 
-    static let zoomMin: CGFloat = 0.5
+    /// Minimum zoom: 1.0 means cannot scale below original size
+    static let zoomMin: CGFloat = 1.0
     static let zoomMax: CGFloat = 3.0
 }

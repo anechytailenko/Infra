@@ -55,6 +55,20 @@ final class FolderDetailViewModel: ObservableObject {
         self.files = folder?.files ?? []
         // Set root directory path for API calls
         self.rootDirectoryPath = folder?.path ?? ""
+        
+        // #region agent log
+        let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "E", "location": "FolderDetailViewModel.swift:init", "message": "FolderDetailViewModel initialized", "data": ["folderName": folder?.name ?? "nil", "folderPath": folder?.path ?? "nil", "filesCount": self.files.count, "childrenCount": folder?.children.count ?? 0], "timestamp": Date().timeIntervalSince1970 * 1000]
+        if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+            let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+            if let handle = FileHandle(forWritingAtPath: logPath) {
+                handle.seekToEndOfFile()
+                handle.write((jsonString + "\n").data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+            }
+        }
+        // #endregion
     }
     
     /// Initialize with a specific root directory path (for when coming from HomeView with API data)

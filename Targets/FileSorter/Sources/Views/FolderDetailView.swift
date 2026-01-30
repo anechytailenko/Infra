@@ -158,33 +158,49 @@ struct FolderDetailView: View {
     }
     
     private var graphCard: some View {
-        GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil)
-            .scaleEffect(scale)
-            .offset(x: offset.width, y: offset.height)
-            .frame(minHeight: FolderDetailStyle.graphCardMinHeight)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .gesture(
-                SimultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            offset = CGSize(
-                                width: lastDragPosition.width + value.translation.width,
-                                height: lastDragPosition.height + value.translation.height
-                            )
-                        }
-                        .onEnded { _ in lastDragPosition = offset },
-                    MagnificationGesture()
-                        .onChanged { value in
-                            let newScale = lastScale * value
-                            scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
-                        }
-                        .onEnded { _ in lastScale = scale }
+        ZStack {
+            GraphView(root: viewModel.folderGraphRoot, onFolderSelected: nil, showHUD: false)
+                .scaleEffect(scale)
+                .offset(x: offset.width, y: offset.height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .gesture(
+                    SimultaneousGesture(
+                        DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: lastDragPosition.width + value.translation.width,
+                                    height: lastDragPosition.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in lastDragPosition = offset },
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let newScale = lastScale * value
+                                scale = max(GraphViewStyle.zoomMin, min(GraphViewStyle.zoomMax, newScale))
+                            }
+                            .onEnded { _ in lastScale = scale }
+                    )
                 )
-            )
-            .padding(GraphViewStyle.graphAreaPadding)
-            .background(AppStyle.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
-            .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
+        }
+        .frame(minHeight: FolderDetailStyle.graphCardMinHeight)
+        .background(AppStyle.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius))
+        .shadow(color: AppStyle.cardShadowColor, radius: AppStyle.cardShadowRadius, x: AppStyle.cardShadowX, y: AppStyle.cardShadowY)
+        // #region agent log
+        .onAppear {
+            let logData: [String: Any] = ["sessionId": "debug-session", "runId": "run1", "hypothesisId": "F", "location": "FolderDetailView.swift:graphCard", "message": "GraphCard rendering", "data": ["rootName": viewModel.folderGraphRoot.name, "rootChildrenCount": viewModel.folderGraphRoot.children.count, "rootFilesCount": viewModel.folderGraphRoot.files.count], "timestamp": Date().timeIntervalSince1970 * 1000]
+            if let jsonData = try? JSONSerialization.data(withJSONObject: logData), let jsonString = String(data: jsonData, encoding: .utf8) {
+                let logPath = "/Users/hermanhavva/Documents/Personal/projects/FileSorterApp/.cursor/debug.log"
+                if let handle = FileHandle(forWritingAtPath: logPath) {
+                    handle.seekToEndOfFile()
+                    handle.write((jsonString + "\n").data(using: .utf8)!)
+                    handle.closeFile()
+                } else {
+                    FileManager.default.createFile(atPath: logPath, contents: (jsonString + "\n").data(using: .utf8))
+                }
+            }
+        }
+        // #endregion
     }
 }

@@ -167,10 +167,7 @@ struct SortDecisionView: View {
                     edges: viewModel.diagramEdges,
                     selectedMove: viewModel.selectedMove,
                     layout: layout,
-                    size: layoutSize,
-                    onFileDrop: { fileId, folderId, folderName in
-                        viewModel.updateFileDestination(fileId: fileId, newFolderId: folderId, newFolderName: folderName)
-                    }
+                    size: layoutSize
                 )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
