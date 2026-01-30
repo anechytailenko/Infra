@@ -58,16 +58,30 @@ struct SortDecisionView: View {
     
     private var diagramSection: some View {
         GeometryReader { geo in
+            let layoutSize = CGSize(
+                width: max(geo.size.width, SortDecisionStyle.diagramMinLayoutWidth),
+                height: max(geo.size.height, SortDecisionStyle.diagramMinLayoutHeight)
+            )
+            let graphNodes = viewModel.diagramNodes.map { node in
+                GraphNodeData(
+                    id: node.id,
+                    label: node.name,
+                    iconName: "folder.fill",
+                    color: node.isAICreated ? .green : .blue,
+                    isGhost: false
+                )
+            }
+            let layout = DiagramLayout(size: layoutSize, nodes: viewModel.diagramNodes, selectedMove: viewModel.selectedMove)
             ZStack(alignment: .topLeading) {
-                // The Graph
-                SortDecisionDiagramView(
-                    nodes: viewModel.diagramNodes,
+                GraphView(
+                    nodes: graphNodes,
                     edges: viewModel.diagramEdges,
-                    selectedMove: viewModel.selectedMove
+                    selectedMove: viewModel.selectedMove,
+                    layout: layout,
+                    size: layoutSize
                 )
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
-                // Gestures: Drag (Pan) and Magnification (Zoom)
                 .gesture(
                     SimultaneousGesture(
                         DragGesture()
@@ -83,7 +97,6 @@ struct SortDecisionView: View {
                         MagnificationGesture()
                             .onChanged { value in
                                 let newScale = lastScale * value
-                                // Limit zoom levels
                                 scale = max(SortDecisionStyle.zoomMin, min(SortDecisionStyle.zoomMax, newScale))
                             }
                             .onEnded { _ in
@@ -232,153 +245,9 @@ struct NiceButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - SortDecisionDiagramView (Internal)
+// MARK: - Diagram Layout (conforms to GraphDiagramLayout for use with GraphView)
 
-struct SortDecisionDiagramView: View {
-    
-    let nodes: [DiagramNode]
-    let edges: [DiagramEdge]
-    let selectedMove: ProposedFileMove?
-    
-    var body: some View {
-        GeometryReader { geo in
-            let layoutSize = CGSize(
-                width: max(geo.size.width, SortDecisionStyle.diagramMinLayoutWidth),
-                height: max(geo.size.height, SortDecisionStyle.diagramMinLayoutHeight)
-            )
-            let layout = DiagramLayout(size: layoutSize, nodes: nodes, selectedMove: selectedMove)
-            
-            ZStack(alignment: .topLeading) {
-                edgesLayer(layout: layout)
-                nodesLayer(layout: layout)
-                if let move = selectedMove {
-                    fileNodesLayer(layout: layout, move: move)
-                }
-            }
-            .frame(minWidth: layoutSize.width, minHeight: layoutSize.height)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .padding(SortDecisionStyle.diagramInnerPadding)
-    }
-    
-    // MARK: - Layers
-    
-    private func edgesLayer(layout: DiagramLayout) -> some View {
-        Canvas { context, _ in
-            for edge in edges {
-                let from = layout.position(for: edge.fromId)
-                let to: CGPoint? = {
-                    switch edge.style {
-                    case .normal: return layout.position(for: edge.toId)
-                    case .originalFile: return selectedMove.flatMap { layout.fileOriginalPosition(move: $0) }
-                    case .proposedFile: return selectedMove.flatMap { layout.fileProposedPosition(move: $0) }
-                    }
-                }()
-                
-                guard let start = from, let end = to else { continue }
-                
-                var path = Path()
-                path.move(to: start)
-                
-                let deltaX = end.x - start.x
-                let control1 = CGPoint(x: start.x + deltaX * SortDecisionStyle.edgeCurveControlFactor, y: start.y)
-                let control2 = CGPoint(x: end.x - deltaX * SortDecisionStyle.edgeCurveControlFactor, y: end.y)
-                
-                path.addCurve(to: end, control1: control1, control2: control2)
-                
-                switch edge.style {
-                case .normal:
-                    context.stroke(path, with: .color(SortDecisionStyle.edgeNormalColor), lineWidth: SortDecisionStyle.edgeNormalLineWidth)
-                case .originalFile:
-                    context.stroke(
-                        path,
-                        with: .color(SortDecisionStyle.edgeOriginalFileColor),
-                        style: StrokeStyle(lineWidth: SortDecisionStyle.edgeOriginalFileLineWidth, dash: SortDecisionStyle.edgeOriginalFileDash)
-                    )
-                case .proposedFile:
-                    context.stroke(path, with: .color(SortDecisionStyle.edgeProposedFileColor), lineWidth: SortDecisionStyle.edgeProposedFileLineWidth)
-                }
-            }
-        }
-    }
-    
-    private func nodesLayer(layout: DiagramLayout) -> some View {
-        ForEach(nodes) { node in
-            if let pos = layout.position(for: node.id) {
-                DiagramNodeView(
-                    icon: "folder.fill",
-                    text: node.name,
-                    baseColor: node.isAICreated ? .green : .blue,
-                    isGlassy: true
-                )
-                .position(pos)
-            }
-        }
-    }
-    
-    private func fileNodesLayer(layout: DiagramLayout, move: ProposedFileMove) -> some View {
-        Group {
-            if let fromPos = layout.fileOriginalPosition(move: move) {
-                DiagramNodeView(
-                    icon: "doc.fill",
-                    text: move.fileName,
-                    baseColor: .red,
-                    isGhost: true
-                )
-                .position(fromPos)
-            }
-            if let toPos = layout.fileProposedPosition(move: move) {
-                DiagramNodeView(
-                    icon: "doc.fill",
-                    text: move.fileName,
-                    baseColor: .green,
-                    isGhost: false
-                )
-                .position(toPos)
-            }
-        }
-    }
-}
-
-// MARK: - Diagram Node View Component
-
-struct DiagramNodeView: View {
-    let icon: String
-    let text: String
-    let baseColor: Color
-    var isGlassy: Bool = false
-    var isGhost: Bool = false
-    
-    var body: some View {
-        HStack(spacing: SortDecisionStyle.nodeHStackSpacing) {
-            Image(systemName: icon)
-                .font(SortDecisionStyle.nodeIconFont)
-            Text(text)
-                .font(SortDecisionStyle.nodeTextFont)
-        }
-        .padding(.horizontal, SortDecisionStyle.nodePaddingHorizontal)
-        .padding(.vertical, SortDecisionStyle.nodePaddingVertical)
-        .background(
-            ZStack {
-                SortDecisionStyle.cardBackground
-                if !isGhost {
-                    baseColor.opacity(SortDecisionStyle.nodeFillOpacity)
-                }
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: SortDecisionStyle.nodeCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: SortDecisionStyle.nodeCornerRadius)
-                .strokeBorder(isGhost ? baseColor.opacity(SortDecisionStyle.nodeGhostBorderOpacity) : baseColor.opacity(SortDecisionStyle.nodeBorderOpacity), style: StrokeStyle(lineWidth: SortDecisionStyle.nodeBorderLineWidth, dash: isGhost ? SortDecisionStyle.nodeGhostDash : []))
-        )
-        .foregroundStyle(baseColor)
-        .shadow(color: baseColor.opacity(isGhost ? SortDecisionStyle.nodeGhostShadowOpacity : SortDecisionStyle.nodeShadowOpacity), radius: SortDecisionStyle.nodeShadowRadius, x: 0, y: SortDecisionStyle.nodeShadowY)
-    }
-}
-
-// MARK: - Diagram Layout Logic
-
-private struct DiagramLayout {
+struct DiagramLayout: GraphDiagramLayout {
     
     let size: CGSize
     let nodes: [DiagramNode]

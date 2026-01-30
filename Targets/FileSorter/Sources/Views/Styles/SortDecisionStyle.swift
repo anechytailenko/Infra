@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - SortDecisionStyle
-// Reusable styling constants for SortDecisionView and subviews.
+// Styling constants for SortDecisionView and subviews. Shared tokens delegate to AppStyle.
 
 struct SortDecisionStyle {
 
@@ -12,34 +12,34 @@ struct SortDecisionStyle {
     static let minWidth: CGFloat = 900
     static let minHeight: CGFloat = 750
     static let proposedListHeight: CGFloat = 280
-    static let cardCornerRadius: CGFloat = 16
+    static let cardCornerRadius: CGFloat = AppStyle.cardCornerRadius
     static let diagramInnerPadding: CGFloat = 100
     static let zoomMin: CGFloat = 0.5
     static let zoomMax: CGFloat = 3.0
 
-    // MARK: - Background / Surface
+    // MARK: - Background / Surface (shared from AppStyle)
 
-    static let mainBackgroundGray = Color(white: 0.90)
-    static let cardBackground = Color.white
+    static let mainBackgroundGray = AppStyle.screenBackground
+    static let cardBackground = AppStyle.cardBackground
     static let listZebraGray = Color(white: 0.97)
     static let listRowEven = Color.white
 
     // MARK: - Typography
 
-    static let listHeaderFont = Font.system(.headline, design: .default)
+    static let listHeaderFont = AppStyle.headlineFont
     static let listHeaderIconFont = Font.title3
     static let rowFileNameFont = Font.system(size: 14, weight: .medium)
     static let rowMovedToFont = Font.system(size: 14)
     static let rowIconFont = Font.title3
     static let buttonFont = Font.system(size: 14, weight: .semibold)
-    static let nodeIconFont = Font.headline
-    static let nodeTextFont = Font.system(size: 13, weight: .medium)
+    static let nodeIconFont = AppStyle.nodeIconFont
+    static let nodeTextFont = AppStyle.nodeTextFont
 
-    // MARK: - Colors – Text / UI
+    // MARK: - Colors – Text / UI (shared from AppStyle where applicable)
 
-    static let textPrimary = Color.black
-    static let textSecondary = Color.gray
-    static let folderIconColor = Color.blue
+    static let textPrimary = AppStyle.textPrimary
+    static let textSecondary = AppStyle.textSecondary
+    static let folderIconColor = AppStyle.folderIconColor
     static let listRowIconColor = Color.gray
     static let declineButtonRed = Color.red
     static let declineButtonGray = Color.gray.opacity(0.5)
@@ -50,43 +50,43 @@ struct SortDecisionStyle {
 
     // MARK: - Colors – Diagram Edges
 
-    static let edgeNormalColor = Color.blue.opacity(0.4)
+    static let edgeNormalColor = AppStyle.edgeNormalColor
     static let edgeOriginalFileColor = Color.red.opacity(0.6)
     static let edgeProposedFileColor = Color.green
 
-    // MARK: - Colors – Diagram Nodes
+    // MARK: - Colors – Diagram Nodes (shared from AppStyle where applicable)
 
-    static let nodeFillOpacity: Double = 0.15
-    static let nodeBorderOpacity: Double = 0.3
+    static let nodeFillOpacity: Double = AppStyle.nodeFillOpacity
+    static let nodeBorderOpacity: Double = AppStyle.nodeBorderOpacity
     static let nodeGhostBorderOpacity: Double = 0.5
     static let nodeShadowOpacity: Double = 0.15
     static let nodeGhostShadowOpacity: Double = 0.0
 
     // MARK: - Edges / Connections
 
-    static let edgeNormalLineWidth: CGFloat = 2
+    static let edgeNormalLineWidth: CGFloat = AppStyle.edgeNormalLineWidth
     static let edgeOriginalFileLineWidth: CGFloat = 1.5
     static let edgeProposedFileLineWidth: CGFloat = 2
     static let edgeOriginalFileDash: [CGFloat] = [5, 5]
     static let nodeGhostDash: [CGFloat] = [4, 4]
     static let edgeCurveControlFactor: CGFloat = 0.5
 
-    // MARK: - Node (DiagramNodeView)
+    // MARK: - Node (DiagramNodeView) (shared from AppStyle where applicable)
 
-    static let nodeHStackSpacing: CGFloat = 8
-    static let nodePaddingHorizontal: CGFloat = 16
-    static let nodePaddingVertical: CGFloat = 10
-    static let nodeCornerRadius: CGFloat = 12
-    static let nodeBorderLineWidth: CGFloat = 1
+    static let nodeHStackSpacing: CGFloat = AppStyle.nodeHStackSpacing
+    static let nodePaddingHorizontal: CGFloat = AppStyle.nodePaddingHorizontal
+    static let nodePaddingVertical: CGFloat = AppStyle.nodePaddingVertical
+    static let nodeCornerRadius: CGFloat = AppStyle.nodeCornerRadius
+    static let nodeBorderLineWidth: CGFloat = AppStyle.nodeBorderLineWidth
     static let nodeShadowRadius: CGFloat = 6
     static let nodeShadowY: CGFloat = 3
 
-    // MARK: - Shadows
+    // MARK: - Shadows (shared from AppStyle for card)
 
-    static let cardShadowColor = Color.black.opacity(0.05)
-    static let cardShadowRadius: CGFloat = 8
-    static let cardShadowX: CGFloat = 0
-    static let cardShadowY: CGFloat = 4
+    static let cardShadowColor = AppStyle.cardShadowColor
+    static let cardShadowRadius: CGFloat = AppStyle.cardShadowRadius
+    static let cardShadowX: CGFloat = AppStyle.cardShadowX
+    static let cardShadowY: CGFloat = AppStyle.cardShadowY
     static let buttonShadowOpacity: Double = 0.3
     static let buttonShadowRadius: CGFloat = 4
     static let buttonShadowY: CGFloat = 2
