@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Shared Models
+
+struct FileMoveAction: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let destination: String
+}
+
 // MARK: - Proposed File Move (list row + diagram from/to)
 
 struct ProposedFileMove: Identifiable, Hashable {
