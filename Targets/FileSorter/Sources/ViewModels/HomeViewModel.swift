@@ -1,8 +1,17 @@
 import Foundation
 import Combine
 
+// MARK: - Prompt Navigation Item
+// Drives navigation to PromptView with query and matched file paths.
+
+struct PromptNavigationItem: Identifiable, Hashable {
+    let id = UUID()
+    let query: String
+    let matchedFiles: [String]
+}
+
 // MARK: - HomeViewModel
-// View model for HomeView. Owns folder tree, search state, and navigation intent (folder detail / search results).
+// View model for HomeView. Owns folder tree, search state, and navigation intent (folder detail / search results / prompt).
 // Fetches filesystem from backend API via HTTPClient.
 
 @MainActor
@@ -28,6 +37,9 @@ final class HomeViewModel: ObservableObject {
     /// Non-nil when user has submitted search and we should push the search-results screen.
     @Published var searchResultsQuery: String?
     
+    /// Non-nil when prompt API succeeded; drives navigation to PromptView.
+    @Published var promptNavigationItem: PromptNavigationItem?
+    
     // MARK: - Loading & Error State
     
     /// True while loading filesystem from API
@@ -38,6 +50,12 @@ final class HomeViewModel: ObservableObject {
     
     /// Whether to show an alert for critical errors
     @Published var showErrorAlert: Bool = false
+    
+    /// True while prompt API is in progress.
+    @Published var isPromptLoading: Bool = false
+    
+    /// Error message from prompt API (nil if none).
+    @Published var promptErrorMessage: String?
     
     // MARK: - Dependencies
     
@@ -74,10 +92,16 @@ final class HomeViewModel: ObservableObject {
             errorMessage = error.errorDescription
             showErrorAlert = error.isCritical
             
+            // Show stub data on error for development
+            rootNode = Self.makeStubTree()
+            
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
             showErrorAlert = true
+            
+            // Show stub data on error for development
+            rootNode = Self.makeStubTree()
         }
     }
     
@@ -87,8 +111,7 @@ final class HomeViewModel: ObservableObject {
         await fetchFilesystem(path: currentPath)
     }
     
-    /// Refresh filesystem from backend. Uses last path if available, otherwise default.
-    /// Call when HomeView appears so the backend is polled every time the user opens home.
+    /// Fetches the filesystem when the home view appears. Uses the default path on first load, or the last path when returning.
     func refreshOnAppear() async {
         let path = currentPath.isEmpty ? APIConfiguration.defaultFilesystemPath : currentPath
         await fetchFilesystem(path: path)
@@ -99,13 +122,27 @@ final class HomeViewModel: ObservableObject {
         errorMessage = nil
         showErrorAlert = false
     }
+
+    // MARK: - Stub Data (fallback)
     
-    // MARK: - Data Availability
-    
-    /// True when filesystem data has been successfully loaded from the API.
-    /// Folders are only clickable when this is true.
-    var isDataAvailable: Bool {
-        filesystemResponse != nil
+    private static func makeStubTree() -> FolderNode {
+        FolderNode(name: "Root", children: [
+            FolderNode(name: "Project_Docs", children: [
+                FolderNode(name: "Client_Reports", children: [
+                    FolderNode(name: "Client_Report_Q1"),
+                    FolderNode(name: "Client_Report_Q2")
+                ]),
+                FolderNode(name: "Shared_Assets", children: [
+                    FolderNode(name: "Eiomnal_Assets", children: [
+                        FolderNode(name: "Source_Files")
+                    ]),
+                    FolderNode(name: "Logos"),
+                    FolderNode(name: "Templates")
+                ]),
+                FolderNode(name: "Marketing_Materials"),
+                FolderNode(name: "Internal_Docs")
+            ])
+        ])
     }
 
     // MARK: - Navigation Actions
@@ -118,6 +155,35 @@ final class HomeViewModel: ObservableObject {
     /// Called when the user submits the search bar. Pushes search-results screen (stub for now).
     func submitSearch() {
         searchResultsQuery = searchQuery
+    }
+    
+    /// Called when the user submits a prompt from the search bar. Calls GET /api/prompt?text=... and navigates to PromptView on success.
+    func submitPrompt() async {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        
+        isPromptLoading = true
+        promptErrorMessage = nil
+        
+        do {
+            let response: PromptMatchResponse = try await httpClient.get(
+                endpoint: APIConfiguration.Endpoints.prompt,
+                queryParams: ["text": query]
+            )
+            promptNavigationItem = PromptNavigationItem(query: query, matchedFiles: response.matchedFiles)
+            isPromptLoading = false
+        } catch let error as APIError {
+            isPromptLoading = false
+            promptErrorMessage = error.errorDescription
+        } catch {
+            isPromptLoading = false
+            promptErrorMessage = error.localizedDescription
+        }
+    }
+    
+    /// Clears prompt result so navigation pops PromptView.
+    func clearPromptResult() {
+        promptNavigationItem = nil
     }
 
     /// Called when folder detail is dismissed. Clears selection so we pop.

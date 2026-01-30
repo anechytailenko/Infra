@@ -20,7 +20,7 @@ struct HomeView: View {
 
                 VStack(spacing: 0) {
                     titleBarPane
-                    SearchView(searchText: $viewModel.searchQuery, exampleQuery: "file invoices", onSort: { viewModel.submitSearch() })
+                    SearchView(searchText: $viewModel.searchQuery, exampleQuery: "file invoices", onSort: { Task { await viewModel.submitPrompt() } })
                     Text("Select any folder to arrange files✨")
                         .font(AppStyle.headlineFont)
                         .fontWeight(.semibold)
@@ -32,29 +32,31 @@ struct HomeView: View {
                     graphSection
                         .padding(GraphViewStyle.mainPadding)
                 }
-                .background(
-                    Group {
-                        NavigationLink(
-                            destination: SearchResultsStubView(query: viewModel.searchResultsQuery ?? "", onDismiss: { viewModel.clearSearchResults() }),
-                            isActive: Binding(
-                                get: { viewModel.searchResultsQuery != nil },
-                                set: { if !$0 { viewModel.clearSearchResults() } }
-                            )
-                        ) { EmptyView() }
-                        .hidden()
-                    }
-                )
-                // Modern navigation pattern: destination created only when item is non-nil
+                .background(Group { })
                 .navigationDestination(item: Binding(
                     get: { viewModel.selectedFolder },
                     set: { viewModel.selectedFolder = $0 }
                 )) { folder in
                     FolderDetailView(folder: folder)
                 }
+                .navigationDestination(item: Binding(
+                    get: { viewModel.promptNavigationItem },
+                    set: { viewModel.promptNavigationItem = $0 }
+                )) { item in
+                    PromptView(
+                        promptText: item.query,
+                        matchedFiles: item.matchedFiles,
+                        onDismiss: { viewModel.clearPromptResult() }
+                    )
+                }
                 
                 // Loading overlay
                 if viewModel.isLoading {
                     loadingOverlay
+                }
+                // Prompt loading overlay
+                if viewModel.isPromptLoading {
+                    promptLoadingOverlay
                 }
             }
             .alert("Error", isPresented: $viewModel.showErrorAlert) {
@@ -67,8 +69,7 @@ struct HomeView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "An unknown error occurred.")
             }
-            .task(id: viewModel.selectedFolder?.id) {
-                // Poll backend when at root: first load (selectedFolder nil) or when returning (selectedFolder becomes nil again)
+            .task {
                 await viewModel.refreshOnAppear()
             }
         }
@@ -78,11 +79,7 @@ struct HomeView: View {
 
     private var graphSection: some View {
         ZStack {
-            // Folders are only clickable when data is available from API
-            GraphView(
-                root: viewModel.rootNode,
-                onFolderSelected: viewModel.isDataAvailable ? { viewModel.selectFolder($0) } : nil
-            )
+            GraphView(root: viewModel.rootNode, onFolderSelected: { viewModel.selectFolder($0) })
                 .scaleEffect(scale)
                 .offset(x: offset.width, y: offset.height)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -133,6 +130,25 @@ struct HomeView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: AppStyle.textPrimary))
                 
                 Text("Loading filesystem...")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(AppStyle.cardBackground)
+            }
+            .padding(30)
+            .background(RoundedRectangle(cornerRadius: AppStyle.cardCornerRadius).fill(Color.black.opacity(0.6)))
+        }
+    }
+    
+    private var promptLoadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .progressViewStyle(CircularProgressViewStyle(tint: AppStyle.textPrimary))
+                
+                Text("Searching files...")
                     .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
                     .foregroundStyle(AppStyle.cardBackground)
             }

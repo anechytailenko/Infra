@@ -11,6 +11,7 @@ enum APIConfiguration {
         static let filesystem = "/api/fs"
         static let aiSuggest = "/api/sort"
         static let execute = "/api/apply"
+        static let prompt = "/api/prompt"
     }
     
     /// Default timeout interval for requests (in seconds)
