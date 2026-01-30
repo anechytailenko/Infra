@@ -14,6 +14,8 @@ struct SearchView: View {
                     .foregroundStyle(AppStyle.textSecondary)
                 TextField("Smart search", text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
+                    .font(.system(size: AppStyle.bodyFontSize, weight: AppStyle.bodyFontWeight))
+                    .foregroundStyle(AppStyle.textPrimary)
             }
             .padding(GraphViewStyle.searchBarPadding)
             .background(AppStyle.cardBackground)

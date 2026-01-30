@@ -106,25 +106,9 @@ struct GraphView: View {
     // MARK: - Folder Mode
 
     private func folderBody(root: FolderNode) -> some View {
-        VStack(spacing: 0) {
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                FolderGraphLayout(root: root)
-                    .padding(GraphViewStyle.graphAreaPadding)
-            }
-
-            HStack(spacing: GraphViewStyle.footerDepthSpacing) {
-                ForEach(["Depth 0", "Depth 1", "Depth 2", "Depth 3", "Depth 4"], id: \.self) { depth in
-                    Text(depth)
-                        .font(GraphViewStyle.depthPillFont)
-                        .fontWeight(GraphViewStyle.depthPillFontWeight)
-                        .foregroundStyle(AppStyle.textPrimary.opacity(GraphViewStyle.depthPillTextOpacity))
-                        .padding(.horizontal, GraphViewStyle.depthPillPaddingHorizontal)
-                        .padding(.vertical, GraphViewStyle.depthPillPaddingVertical)
-                        .background(AppStyle.cardBackground)
-                        .cornerRadius(GraphViewStyle.depthPillCornerRadius)
-                }
-            }
-            .padding(.bottom, GraphViewStyle.footerBottomPadding)
+        ScrollView([.horizontal, .vertical], showsIndicators: false) {
+            FolderGraphLayout(root: root)
+                .padding(GraphViewStyle.graphAreaPadding)
         }
     }
 
