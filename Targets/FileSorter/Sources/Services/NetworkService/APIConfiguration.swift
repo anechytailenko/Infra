@@ -5,7 +5,7 @@ import Foundation
 // Follows Single Responsibility Principle (SRP) - centralizes all API configuration.
 
 enum APIConfiguration {
-    static let baseURL = "http://172.16.6.112:8000"
+    static let baseURL = "http://192.168.10.24:8000"
     
     enum Endpoints {
         static let filesystem = "/api/fs"

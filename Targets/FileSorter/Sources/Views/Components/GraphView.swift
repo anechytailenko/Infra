@@ -55,13 +55,13 @@ struct GraphNodeView: View {
 
 struct GraphView: View {
     enum Mode {
-        case folder(FolderNode, onFolderSelected: ((FolderNode) -> Void)?)
+        case folder(FolderNode, onFolderSelected: ((FolderNode) -> Void)?, highlightedFolderNames: Set<String>)
         case diagram(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize)
     }
     private let mode: Mode
 
-    init(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)? = nil) {
-        mode = .folder(root, onFolderSelected: onFolderSelected)
+    init(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)? = nil, highlightedFolderNames: Set<String> = []) {
+        mode = .folder(root, onFolderSelected: onFolderSelected, highlightedFolderNames: highlightedFolderNames)
     }
 
     init(nodes: [GraphNodeData], edges: [DiagramEdge], selectedMove: ProposedFileMove?, layout: any GraphDiagramLayout, size: CGSize) {
@@ -70,8 +70,8 @@ struct GraphView: View {
 
     var body: some View {
         switch mode {
-        case .folder(let root, let onFolderSelected):
-            folderBody(root: root, onFolderSelected: onFolderSelected)
+        case .folder(let root, let onFolderSelected, let highlightedFolderNames):
+            folderBody(root: root, onFolderSelected: onFolderSelected, highlightedFolderNames: highlightedFolderNames)
         case .diagram(let nodes, let edges, let selectedMove, let layout, let size):
             diagramBody(nodes: nodes, edges: edges, selectedMove: selectedMove, layout: layout, size: size)
         }
@@ -79,9 +79,9 @@ struct GraphView: View {
 
     // MARK: - Folder Mode
 
-    private func folderBody(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)?) -> some View {
+    private func folderBody(root: FolderNode, onFolderSelected: ((FolderNode) -> Void)?, highlightedFolderNames: Set<String>) -> some View {
         ScrollView([.horizontal, .vertical], showsIndicators: false) {
-            FolderGraphLayout(root: root, onFolderSelected: onFolderSelected)
+            FolderGraphLayout(root: root, onFolderSelected: onFolderSelected, highlightedFolderNames: highlightedFolderNames)
                 .padding(GraphViewStyle.graphAreaPadding)
         }
     }
@@ -210,9 +210,10 @@ private struct LeadingAnchorModifier: ViewModifier {
 struct FolderGraphLayout: View {
     let root: FolderNode
     var onFolderSelected: ((FolderNode) -> Void)? = nil
+    var highlightedFolderNames: Set<String> = []
 
     var body: some View {
-        RecursiveNodeView(node: root, depth: 0, onFolderSelected: onFolderSelected)
+        RecursiveNodeView(node: root, depth: 0, onFolderSelected: onFolderSelected, highlightedFolderNames: highlightedFolderNames)
             .backgroundPreferenceValue(NodeBoundsKey.self) { preferences in
                 GeometryReader { geometry in
                     self.drawConnections(preferences: preferences, in: geometry)
@@ -261,7 +262,13 @@ struct RecursiveNodeView: View {
     let node: FolderNode
     let depth: Int
     var onFolderSelected: ((FolderNode) -> Void)? = nil
+    var highlightedFolderNames: Set<String> = []
     @State private var isHovering = false
+    
+    /// Check if this folder should be highlighted (contains selected files)
+    private var isHighlighted: Bool {
+        highlightedFolderNames.contains(node.name)
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: GraphViewStyle.folderGraphHStackSpacing) {
@@ -270,7 +277,7 @@ struct RecursiveNodeView: View {
             if !node.children.isEmpty {
                 VStack(alignment: .leading, spacing: GraphViewStyle.folderGraphVStackSpacing) {
                     ForEach(node.children) { child in
-                        RecursiveNodeView(node: child, depth: depth + 1, onFolderSelected: onFolderSelected)
+                        RecursiveNodeView(node: child, depth: depth + 1, onFolderSelected: onFolderSelected, highlightedFolderNames: highlightedFolderNames)
                     }
                 }
             }
@@ -279,7 +286,7 @@ struct RecursiveNodeView: View {
 
     @ViewBuilder
     private var nodeContent: some View {
-        let itemView = FolderItemView(name: node.name)
+        let itemView = FolderItemView(name: node.name, highlightColor: isHighlighted ? GraphViewStyle.selectionHighlightColor : nil)
             .anchorPreference(key: NodeBoundsKey.self, value: .bounds) { [node.id: $0] }
 
         if let onFolderSelected = onFolderSelected {
@@ -303,22 +310,30 @@ struct RecursiveNodeView: View {
 
 struct FolderItemView: View {
     let name: String
+    /// Optional highlight color for selected state (e.g., purple for selected files)
+    var highlightColor: Color? = nil
+    
+    /// The effective color to use (highlight color if provided, otherwise default folder color)
+    private var effectiveColor: Color {
+        highlightColor ?? AppStyle.folderIconColor
+    }
+    
     var body: some View {
         HStack(spacing: AppStyle.nodeHStackSpacing) {
             Image(systemName: "folder.fill")
                 .font(AppStyle.nodeIconFont)
-                .foregroundStyle(AppStyle.folderIconColor)
+                .foregroundStyle(effectiveColor)
             Text(name)
                 .font(AppStyle.nodeTextFont)
-                .foregroundStyle(AppStyle.textPrimary.opacity(0.8))
+                .foregroundStyle(highlightColor != nil ? effectiveColor : AppStyle.textPrimary.opacity(0.8))
         }
         .padding(.vertical, AppStyle.nodePaddingVertical)
         .padding(.horizontal, AppStyle.nodePaddingHorizontal)
-        .background(AppStyle.folderIconColor.opacity(AppStyle.nodeFillOpacity))
+        .background(effectiveColor.opacity(AppStyle.nodeFillOpacity))
         .clipShape(RoundedRectangle(cornerRadius: AppStyle.nodeCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: AppStyle.nodeCornerRadius)
-                .strokeBorder(AppStyle.folderIconColor.opacity(AppStyle.nodeBorderOpacity), lineWidth: AppStyle.nodeBorderLineWidth)
+                .strokeBorder(effectiveColor.opacity(AppStyle.nodeBorderOpacity), lineWidth: AppStyle.nodeBorderLineWidth)
         )
     }
 }

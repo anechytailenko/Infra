@@ -37,4 +37,9 @@ struct GraphViewStyle {
 
     static let zoomMin: CGFloat = 0.5
     static let zoomMax: CGFloat = 3.0
+    
+    // MARK: - Selection Highlight
+    
+    /// Purple color used to highlight folders containing selected files
+    static let selectionHighlightColor: Color = Color(red: 0.6, green: 0.4, blue: 0.9)
 }

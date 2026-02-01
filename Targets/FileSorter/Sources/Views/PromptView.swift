@@ -75,7 +75,11 @@ struct PromptView: View {
                 AppStyle.cardBackground
                 
                 if let root = viewModel.rootNode {
-                    GraphView(root: root, onFolderSelected: nil)
+                    GraphView(
+                        root: root,
+                        onFolderSelected: nil,
+                        highlightedFolderNames: viewModel.highlightedFolderNames
+                    )
                 } else {
                     ProgressView("Loading Graph...")
                         .foregroundStyle(AppStyle.textSecondary)

@@ -18,6 +18,18 @@ class PromptViewModel: ObservableObject {
     var selectedCount: Int { files.filter { $0.isSelected }.count }
     var isAllSelected: Bool { !files.isEmpty && files.allSatisfy { $0.isSelected } }
     
+    /// Set of folder names that contain selected files (for GraphView highlighting)
+    var highlightedFolderNames: Set<String> {
+        let selectedFiles = files.filter { $0.isSelected }
+        var folderNames = Set<String>()
+        for file in selectedFiles {
+            if let parentFolder = getParentFolder(for: file) {
+                folderNames.insert(parentFolder)
+            }
+        }
+        return folderNames
+    }
+    
     /// Root segment for the graph; only nodes from this path onward are shown.
     private static let graphRootSegment = "home"
     
